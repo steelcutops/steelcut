@@ -13,20 +13,22 @@ type Update struct {
 type Host interface {
 	CheckUpdates() ([]Update, error)
 	RunCommand(cmd string) (string, error)
+	DetermineOS() (string, error)
 }
 
-type LinuxHost struct {
+type UnixHost struct {
 	Hostname string
 	User     string
 	Password string
 }
 
-func (h LinuxHost) CheckUpdates() ([]Update, error) {
-	// Implement the update check for Linux hosts.
+func (h UnixHost) CheckUpdates() ([]Update, error) {
+	// Implement the update check for Unix hosts.
+	// The implementation may vary depending on the specific OS.
 	return []Update{}, nil
 }
 
-func (h LinuxHost) RunCommand(cmd string) (string, error) {
+func (h UnixHost) RunCommand(cmd string) (string, error) {
 	// If the hostname is "localhost" or "127.0.0.1", run the command locally.
 	if h.Hostname == "localhost" || h.Hostname == "127.0.0.1" {
 		parts := strings.Fields(cmd)
@@ -68,4 +70,16 @@ func (h LinuxHost) RunCommand(cmd string) (string, error) {
 	}
 
 	return string(output), nil
+}
+
+func (h UnixHost) DetermineOS() (string, error) {
+	// Run the 'uname' command to determine the OS.
+	output, err := h.RunCommand("uname")
+	if err != nil {
+		return "", err
+	}
+
+	// The 'uname' command returns a string followed by a newline character.
+	// We use strings.TrimSpace to remove the newline character.
+	return strings.TrimSpace(output), nil
 }
