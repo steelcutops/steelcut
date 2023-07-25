@@ -13,13 +13,13 @@ type Update struct {
 type Host interface {
 	CheckUpdates() ([]Update, error)
 	RunCommand(cmd string) (string, error)
-	DetermineOS() (string, error)
 }
 
 type UnixHost struct {
 	Hostname string
 	User     string
 	Password string
+	OS       string
 }
 
 type HostOption func(*UnixHost)
@@ -36,6 +36,12 @@ func WithPassword(password string) HostOption {
 	}
 }
 
+func WithOS(os string) HostOption {
+	return func(host *UnixHost) {
+		host.OS = os
+	}
+}
+
 func NewHost(hostname string, options ...HostOption) (Host, error) {
 	host := &UnixHost{
 		Hostname: hostname,
@@ -45,17 +51,40 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 		option(host)
 	}
 
-	// Implement the logic to check if the host is reachable or not
-	// ...
+	// If the OS has not been specified, determine it.
+	if host.OS == "" {
+		os, err := determineOS(host)
+		if err != nil {
+			return nil, err
+		}
+		host.OS = os
+	}
+
+	// You could return different types of Hosts based on the OS.
+	// For now, we'll just return the UnixHost.
 
 	return host, nil
 }
 
+// determineOS is a helper function that runs the 'uname' command on a host
+// to determine its OS.
+func determineOS(host *UnixHost) (string, error) {
+	output, err := host.RunCommand("uname")
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(output), nil
+}
+
 func (h UnixHost) CheckUpdates() ([]Update, error) {
 	// Implement the update check for Unix hosts.
-	// The implementation may vary depending on the specific OS.
+	// The implementation may vary depending on the OS.
 	return []Update{}, nil
 }
+
+// Rest of your UnixHost methods implementation
+
 
 func (h UnixHost) RunCommand(cmd string) (string, error) {
 	// If the hostname is "localhost" or "127.0.0.1", run the command locally.
@@ -99,16 +128,4 @@ func (h UnixHost) RunCommand(cmd string) (string, error) {
 	}
 
 	return string(output), nil
-}
-
-func (h UnixHost) DetermineOS() (string, error) {
-	// Run the 'uname' command to determine the OS.
-	output, err := h.RunCommand("uname")
-	if err != nil {
-		return "", err
-	}
-
-	// The 'uname' command returns a string followed by a newline character.
-	// We use strings.TrimSpace to remove the newline character.
-	return strings.TrimSpace(output), nil
 }
