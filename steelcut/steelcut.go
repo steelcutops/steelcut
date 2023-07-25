@@ -1,9 +1,11 @@
 package steelcut
 
 import (
-	"golang.org/x/crypto/ssh"
+	"fmt"
 	"os/exec"
 	"strings"
+
+	"golang.org/x/crypto/ssh"
 )
 
 type Update struct {
@@ -20,6 +22,35 @@ type UnixHost struct {
 	User     string
 	Password string
 	OS       string
+}
+
+type LinuxHost struct {
+	UnixHost
+}
+
+type MacOSHost struct {
+	UnixHost
+}
+
+// Implement the Host interface for LinuxHost and MacOSHost.
+// For simplicity, we'll just use the same implementation as UnixHost for now.
+
+func (h LinuxHost) CheckUpdates() ([]Update, error) {
+	// Implement the update check for Linux hosts.
+	return []Update{}, nil
+}
+
+func (h LinuxHost) RunCommand(cmd string) (string, error) {
+	return h.UnixHost.RunCommand(cmd)
+}
+
+func (h MacOSHost) CheckUpdates() ([]Update, error) {
+	// Implement the update check for macOS hosts.
+	return []Update{}, nil
+}
+
+func (h MacOSHost) RunCommand(cmd string) (string, error) {
+	return h.UnixHost.RunCommand(cmd)
 }
 
 type HostOption func(*UnixHost)
@@ -60,14 +91,17 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 		host.OS = os
 	}
 
-	// You could return different types of Hosts based on the OS.
-	// For now, we'll just return the UnixHost.
-
-	return host, nil
+	// Return a different type of Host based on the OS.
+	switch host.OS {
+	case "Linux":
+		return LinuxHost{*host}, nil
+	case "Darwin":
+		return MacOSHost{*host}, nil
+	default:
+		return nil, fmt.Errorf("unsupported operating system: %s", host.OS)
+	}
 }
 
-// determineOS is a helper function that runs the 'uname' command on a host
-// to determine its OS.
 func determineOS(host *UnixHost) (string, error) {
 	output, err := host.RunCommand("uname")
 	if err != nil {
@@ -76,15 +110,6 @@ func determineOS(host *UnixHost) (string, error) {
 
 	return strings.TrimSpace(output), nil
 }
-
-func (h UnixHost) CheckUpdates() ([]Update, error) {
-	// Implement the update check for Unix hosts.
-	// The implementation may vary depending on the OS.
-	return []Update{}, nil
-}
-
-// Rest of your UnixHost methods implementation
-
 
 func (h UnixHost) RunCommand(cmd string) (string, error) {
 	// If the hostname is "localhost" or "127.0.0.1", run the command locally.
