@@ -9,7 +9,7 @@ import (
 
 func main() {
 	// Create a LinuxHost from the steelcut library
-	host := steelcut.LinuxHost{
+	host := steelcut.UnixHost{
 		Hostname: "localhost",
 	}
 
