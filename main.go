@@ -8,12 +8,11 @@ import (
 )
 
 func main() {
-	// Create a LinuxHost from the steelcut library
-	host := steelcut.UnixHost{
-		Hostname: "localhost",
+	host, err := steelcut.NewHost("localhost")
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	// Use the RunCommand method from the steelcut library
 	output, err := host.RunCommand("uname -a")
 	if err != nil {
 		log.Fatal(err)

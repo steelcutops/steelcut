@@ -22,6 +22,35 @@ type UnixHost struct {
 	Password string
 }
 
+type HostOption func(*UnixHost)
+
+func WithUser(user string) HostOption {
+	return func(host *UnixHost) {
+		host.User = user
+	}
+}
+
+func WithPassword(password string) HostOption {
+	return func(host *UnixHost) {
+		host.Password = password
+	}
+}
+
+func NewHost(hostname string, options ...HostOption) (Host, error) {
+	host := &UnixHost{
+		Hostname: hostname,
+	}
+
+	for _, option := range options {
+		option(host)
+	}
+
+	// Implement the logic to check if the host is reachable or not
+	// ...
+
+	return host, nil
+}
+
 func (h UnixHost) CheckUpdates() ([]Update, error) {
 	// Implement the update check for Unix hosts.
 	// The implementation may vary depending on the specific OS.
