@@ -33,7 +33,7 @@ func (h UnixHost) RunCommand(cmd string) (string, error) {
 	if h.Hostname == "localhost" || h.Hostname == "127.0.0.1" {
 		parts := strings.Fields(cmd)
 		head := parts[0]
-		parts = parts[1:len(parts)]
+		parts = parts[1:]
 
 		out, err := exec.Command(head, parts...).Output()
 		if err != nil {
