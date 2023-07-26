@@ -32,9 +32,6 @@ type MacOSHost struct {
 	UnixHost
 }
 
-// Implement the Host interface for LinuxHost and MacOSHost.
-// For simplicity, we'll just use the same implementation as UnixHost for now.
-
 func (h LinuxHost) CheckUpdates() ([]Update, error) {
 	// Implement the update check for Linux hosts.
 	return []Update{}, nil
