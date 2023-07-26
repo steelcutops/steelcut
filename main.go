@@ -3,22 +3,41 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/m-217/steelcut/steelcut"
-	"golang.org/x/term"
 	"log"
 	"os"
+
+	"github.com/m-217/steelcut/steelcut"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/term"
 )
+
+var (
+	logFileName string
+	debug       bool
+	logger      = logrus.New()
+)
+
+func init() {
+	// Define flags for log file and debug level
+	flag.StringVar(&logFileName, "log", "log.txt", "Log file name")
+	flag.BoolVar(&debug, "debug", false, "Enable debug log level")
+}
 
 func main() {
 	// open the log file
-	file, err := os.OpenFile("log.txt", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	file, err := os.OpenFile(logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 
 	defer file.Close()
 
-	log.SetOutput(file)
+	logger.SetOutput(file)
+	if debug {
+		logger.SetLevel(logrus.DebugLevel)
+	} else {
+		logger.SetLevel(logrus.InfoLevel)
+	}
 
 	// Define flags for command line arguments
 	hostname := flag.String("hostname", "", "Hostname to connect to")

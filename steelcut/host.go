@@ -192,21 +192,16 @@ func (h UnixHost) RunCommand(cmd string) (string, error) {
 
 	return string(output), nil
 }
-
 func getSSHKeys(keyPassphrase string) ([]ssh.Signer, error) {
-	log.Println("Getting SSH keys...")
-	socket := os.Getenv("SSH_AUTH_SOCK")
-	conn, err := net.Dial("unix", socket)
-
-	if err != nil {
-		log.Println("SSH Agent not running, trying to load keys from default location")
+	signers := []ssh.Signer{}
+	if keyPassphrase != "" {
+		log.Println("Using key passphrase, skipping SSH Agent...")
 
 		files, err := filepath.Glob(os.Getenv("HOME") + "/.ssh/id_*[^.pub]")
 		if err != nil {
 			return nil, err
 		}
 
-		signers := []ssh.Signer{}
 		for _, file := range files {
 			if strings.HasSuffix(file, ".pub") {
 				continue
@@ -236,26 +231,34 @@ func getSSHKeys(keyPassphrase string) ([]ssh.Signer, error) {
 
 		log.Println("SSH keys loaded successfully")
 		return signers, nil
-	}
+	} else {
+		log.Println("Getting SSH keys from SSH Agent...")
+		socket := os.Getenv("SSH_AUTH_SOCK")
+		conn, err := net.Dial("unix", socket)
 
-	log.Println("Creating new SSH agent client...")
-	agentClient := agent.NewClient(conn)
+		if err != nil {
+			return nil, fmt.Errorf("SSH Agent not running")
+		}
 
-	log.Println("Fetching keys from SSH agent...")
-	keys, err := agentClient.Signers()
-	if err != nil {
-		log.Printf("Failed to fetch keys from SSH agent: %v\n", err)
+		log.Println("Creating new SSH agent client...")
+		agentClient := agent.NewClient(conn)
+
+		log.Println("Fetching keys from SSH agent...")
+		keys, err := agentClient.Signers()
+		if err != nil {
+			log.Printf("Failed to fetch keys from SSH agent: %v\n", err)
+			conn.Close()
+			return nil, err
+		}
+
+		if len(keys) == 0 {
+			log.Println("No keys found in SSH agent.")
+			conn.Close()
+			return nil, fmt.Errorf("no keys found in SSH agent")
+		}
+
+		log.Printf("Fetched %d keys from SSH agent.\n", len(keys))
 		conn.Close()
-		return nil, err
+		return keys, nil
 	}
-
-	if len(keys) == 0 {
-		log.Println("No keys found in SSH agent.")
-		conn.Close()
-		return nil, fmt.Errorf("no keys found in SSH agent")
-	}
-
-	log.Printf("Fetched %d keys from SSH agent.\n", len(keys))
-	conn.Close()
-	return keys, nil
 }
