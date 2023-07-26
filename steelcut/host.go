@@ -2,10 +2,17 @@ package steelcut
 
 import (
 	"fmt"
+	"log"
+	"net"
+	"os"
 	"os/exec"
+	"os/user"
+
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 )
 
 type Update struct {
@@ -18,10 +25,11 @@ type Host interface {
 }
 
 type UnixHost struct {
-	Hostname string
-	User     string
-	Password string
-	OS       string
+	Hostname      string
+	User          string
+	Password      string
+	KeyPassphrase string
+	OS            string
 }
 
 type LinuxHost struct {
@@ -64,6 +72,12 @@ func WithPassword(password string) HostOption {
 	}
 }
 
+func WithKeyPassphrase(keyPassphrase string) HostOption {
+	return func(host *UnixHost) {
+		host.KeyPassphrase = keyPassphrase
+	}
+}
+
 func WithOS(os string) HostOption {
 	return func(host *UnixHost) {
 		host.OS = os
@@ -77,6 +91,15 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 
 	for _, option := range options {
 		option(host)
+	}
+
+	// If the username has not been specified, use the current user's username.
+	if host.User == "" {
+		currentUser, err := user.Current()
+		if err != nil {
+			return nil, fmt.Errorf("could not get current user: %v", err)
+		}
+		host.User = currentUser.Username
 	}
 
 	// If the OS has not been specified, determine it.
@@ -109,6 +132,7 @@ func determineOS(host *UnixHost) (string, error) {
 }
 
 func (h UnixHost) RunCommand(cmd string) (string, error) {
+	log.Printf("Running command '%s' on host '%s' with user '%s'\n", cmd, h.Hostname, h.User)
 	// If the hostname is "localhost" or "127.0.0.1", run the command locally.
 	if h.Hostname == "localhost" || h.Hostname == "127.0.0.1" {
 		parts := strings.Fields(cmd)
@@ -124,10 +148,27 @@ func (h UnixHost) RunCommand(cmd string) (string, error) {
 	}
 
 	// Otherwise, run the command over SSH.
+	var authMethod ssh.AuthMethod
+
+	if h.Password != "" {
+		log.Println("Using password authentication")
+		authMethod = ssh.Password(h.Password)
+	} else {
+		log.Println("Using public key authentication")
+		keys, err := getSSHKeys(h.KeyPassphrase)
+		if err != nil {
+			return "", err
+		}
+
+		authMethod = ssh.PublicKeysCallback(func() ([]ssh.Signer, error) {
+			return keys, nil
+		})
+	}
+
 	config := &ssh.ClientConfig{
 		User: h.User,
 		Auth: []ssh.AuthMethod{
-			ssh.Password(h.Password),
+			authMethod,
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
@@ -150,4 +191,71 @@ func (h UnixHost) RunCommand(cmd string) (string, error) {
 	}
 
 	return string(output), nil
+}
+
+func getSSHKeys(keyPassphrase string) ([]ssh.Signer, error) {
+	log.Println("Getting SSH keys...")
+	socket := os.Getenv("SSH_AUTH_SOCK")
+	conn, err := net.Dial("unix", socket)
+
+	if err != nil {
+		log.Println("SSH Agent not running, trying to load keys from default location")
+
+		files, err := filepath.Glob(os.Getenv("HOME") + "/.ssh/id_*[^.pub]")
+		if err != nil {
+			return nil, err
+		}
+
+		signers := []ssh.Signer{}
+		for _, file := range files {
+			if strings.HasSuffix(file, ".pub") {
+				continue
+			}
+
+			log.Printf("Processing key file: %s", file)
+			key, err := os.ReadFile(file)
+			if err != nil {
+				log.Printf("Could not read key file: %s", file)
+				continue
+			}
+
+			var signer ssh.Signer
+			signer, err = ssh.ParsePrivateKeyWithPassphrase(key, []byte(keyPassphrase))
+			if err != nil {
+				log.Printf("Could not parse key with passphrase: %s", file)
+				continue
+			}
+
+			signers = append(signers, signer)
+		}
+
+		if len(signers) == 0 {
+			log.Println("No valid SSH keys found")
+			return nil, fmt.Errorf("no valid SSH keys found")
+		}
+
+		log.Println("SSH keys loaded successfully")
+		return signers, nil
+	}
+
+	log.Println("Creating new SSH agent client...")
+	agentClient := agent.NewClient(conn)
+
+	log.Println("Fetching keys from SSH agent...")
+	keys, err := agentClient.Signers()
+	if err != nil {
+		log.Printf("Failed to fetch keys from SSH agent: %v\n", err)
+		conn.Close()
+		return nil, err
+	}
+
+	if len(keys) == 0 {
+		log.Println("No keys found in SSH agent.")
+		conn.Close()
+		return nil, fmt.Errorf("no keys found in SSH agent")
+	}
+
+	log.Printf("Fetched %d keys from SSH agent.\n", len(keys))
+	conn.Close()
+	return keys, nil
 }
