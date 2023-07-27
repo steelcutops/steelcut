@@ -29,6 +29,8 @@ type Host interface {
 	AddPackage(pkg string) error
 	RemovePackage(pkg string) error
 	UpgradePackage(pkg string) error
+	Reboot() error
+	Shutdown() error
 	SystemReporter
 }
 
@@ -165,6 +167,27 @@ func (h LinuxHost) RunningProcesses() ([]string, error) {
 	lines := strings.Split(output, "\n")
 	return lines[1:], nil // Skip the header line
 }
+
+func (h LinuxHost) Reboot() error {
+	_, err := h.RunCommand("sudo reboot")
+	return err
+}
+
+func (h LinuxHost) Shutdown() error {
+	_, err := h.RunCommand("sudo shutdown -h now")
+	return err
+}
+
+func (h MacOSHost) Reboot() error {
+	_, err := h.RunCommand("sudo reboot")
+	return err
+}
+
+func (h MacOSHost) Shutdown() error {
+	_, err := h.RunCommand("sudo shutdown -h now")
+	return err
+}
+
 
 func (h MacOSHost) ListPackages() ([]string, error) {
 	return h.PackageManager.ListPackages(h.UnixHost)
