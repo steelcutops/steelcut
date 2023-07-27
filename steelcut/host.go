@@ -3,16 +3,12 @@ package steelcut
 import (
 	"fmt"
 	"log"
-	"net"
-	"os"
 	"os/exec"
 	"os/user"
 
-	"path/filepath"
 	"strings"
 
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/agent"
 )
 
 type Update struct {
@@ -153,7 +149,6 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 	case "Linux":
 		// Determine the package manager.
 		// Here we just guess based on the contents of /etc/os-release.
-		// You might want to use a more reliable method.
 		osRelease, _ := host.RunCommand("cat /etc/os-release")
 		if strings.Contains(osRelease, "ID=ubuntu") || strings.Contains(osRelease, "ID=debian") {
 			return LinuxHost{*host, AptPackageManager{}}, nil
@@ -202,7 +197,14 @@ func (h UnixHost) RunCommand(cmd string) (string, error) {
 		authMethod = ssh.Password(h.Password)
 	} else {
 		log.Println("Using public key authentication")
-		keys, err := getSSHKeys(h.KeyPassphrase)
+		var keyManager SSHKeyManager
+		if h.KeyPassphrase != "" {
+			keyManager = FileSSHKeyManager{}
+		} else {
+			keyManager = AgentSSHKeyManager{}
+		}
+
+		keys, err := keyManager.ReadPrivateKeys(h.KeyPassphrase)
 		if err != nil {
 			return "", err
 		}
@@ -238,74 +240,4 @@ func (h UnixHost) RunCommand(cmd string) (string, error) {
 	}
 
 	return string(output), nil
-}
-func getSSHKeys(keyPassphrase string) ([]ssh.Signer, error) {
-	signers := []ssh.Signer{}
-	if keyPassphrase != "" {
-		log.Println("Using key passphrase, skipping SSH Agent...")
-
-		files, err := filepath.Glob(os.Getenv("HOME") + "/.ssh/id_*[^.pub]")
-		if err != nil {
-			return nil, err
-		}
-
-		for _, file := range files {
-			if strings.HasSuffix(file, ".pub") {
-				continue
-			}
-
-			log.Printf("Processing key file: %s", file)
-			key, err := os.ReadFile(file)
-			if err != nil {
-				log.Printf("Could not read key file: %s", file)
-				continue
-			}
-
-			var signer ssh.Signer
-			signer, err = ssh.ParsePrivateKeyWithPassphrase(key, []byte(keyPassphrase))
-			if err != nil {
-				log.Printf("Could not parse key with passphrase: %s", file)
-				continue
-			}
-
-			signers = append(signers, signer)
-		}
-
-		if len(signers) == 0 {
-			log.Println("No valid SSH keys found")
-			return nil, fmt.Errorf("no valid SSH keys found")
-		}
-
-		log.Println("SSH keys loaded successfully")
-		return signers, nil
-	} else {
-		log.Println("Getting SSH keys from SSH Agent...")
-		socket := os.Getenv("SSH_AUTH_SOCK")
-		conn, err := net.Dial("unix", socket)
-
-		if err != nil {
-			return nil, fmt.Errorf("SSH Agent not running")
-		}
-
-		log.Println("Creating new SSH agent client...")
-		agentClient := agent.NewClient(conn)
-
-		log.Println("Fetching keys from SSH agent...")
-		keys, err := agentClient.Signers()
-		if err != nil {
-			log.Printf("Failed to fetch keys from SSH agent: %v\n", err)
-			conn.Close()
-			return nil, err
-		}
-
-		if len(keys) == 0 {
-			log.Println("No keys found in SSH agent.")
-			conn.Close()
-			return nil, fmt.Errorf("no keys found in SSH agent")
-		}
-
-		log.Printf("Fetched %d keys from SSH agent.\n", len(keys))
-		conn.Close()
-		return keys, nil
-	}
 }
