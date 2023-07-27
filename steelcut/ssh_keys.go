@@ -2,7 +2,6 @@ package steelcut
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -72,7 +71,7 @@ func (km FileSSHKeyManager) ReadPrivateKeys(keyPassphrase string) ([]ssh.Signer,
 		}
 
 		// Read private key file
-		keyBytes, err := ioutil.ReadFile(file)
+		keyBytes, err := os.ReadFile(file)
 		if err != nil {
 			return nil, err
 		}
