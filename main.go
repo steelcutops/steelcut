@@ -89,12 +89,18 @@ func main() {
 		hostGroup.AddHost(server)
 	}
 
-	results, err := hostGroup.RunCommandOnAll("uname -a")
-	if err != nil {
-		log.Fatal(err)
+	results, errors := hostGroup.RunCommandOnAll("uname -a")
+
+	if len(errors) > 0 {
+		for _, err := range errors {
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
 	}
 
 	for i, result := range results {
 		fmt.Printf("Result for host %d: %s\n", i+1, result)
 	}
+
 }

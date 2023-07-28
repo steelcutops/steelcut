@@ -5,7 +5,8 @@ import (
 )
 
 type HostGroup struct {
-	Hosts []Host
+	sync.RWMutex // Embedding a RWMutex to provide locking
+	Hosts        []Host
 }
 
 func NewHostGroup(hosts ...Host) *HostGroup {
@@ -13,44 +14,47 @@ func NewHostGroup(hosts ...Host) *HostGroup {
 }
 
 func (hg *HostGroup) AddHost(host Host) {
+	hg.Lock()
+	defer hg.Unlock()
 	hg.Hosts = append(hg.Hosts, host)
 }
 
-func (hg *HostGroup) RunCommandOnAll(cmd string) ([]string, error) {
-	var results []string
-	var errors []error
+func (hg *HostGroup) RunCommandOnAll(cmd string) ([]string, []error) {
 	var wg sync.WaitGroup
-	resultsChan := make(chan string, len(hg.Hosts))
-	errChan := make(chan error, len(hg.Hosts))
+	results := make(chan string, len(hg.Hosts))
+	errors := make(chan error, len(hg.Hosts))
 
+	hg.RLock() // Lock for reading
 	for _, host := range hg.Hosts {
 		wg.Add(1)
 		go func(h Host) {
 			defer wg.Done()
 			result, err := h.RunCommand(cmd)
 			if err != nil {
-				errChan <- err
+				errors <- err
 			} else {
-				resultsChan <- result
+				results <- result
 			}
 		}(host)
 	}
+	hg.RUnlock()
 
 	wg.Wait()
-	close(resultsChan)
-	close(errChan)
 
-	for result := range resultsChan {
-		results = append(results, result)
+	// Close the channels after all goroutines are done
+	close(results)
+	close(errors)
+
+	// Convert channels to slices
+	var res []string
+	for result := range results {
+		res = append(res, result)
 	}
 
-	for err := range errChan {
-		errors = append(errors, err)
+	var errs []error
+	for err := range errors {
+		errs = append(errs, err)
 	}
 
-	if len(errors) != 0 {
-		return nil, errors[0]
-	}
-
-	return results, nil
+	return res, errs
 }
