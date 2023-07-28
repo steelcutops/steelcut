@@ -1,6 +1,7 @@
 package steelcut
 
 import (
+	"bufio"
 	"fmt"
 	"strconv"
 	"strings"
@@ -37,14 +38,29 @@ func (h LinuxHost) RunCommand(cmd string) (string, error) {
 }
 
 func (h LinuxHost) CPUUsage() (float64, error) {
-	output, err := h.RunCommand("cat /proc/stat | grep '^cpu '")
+	output, err := h.RunCommand("cat /proc/stat")
 	if err != nil {
 		return 0, err
 	}
 
-	// Parse the output to calculate CPU usage.
+	// Find the line that starts with 'cpu'
+	var cpuLine string
+	scanner := bufio.NewScanner(strings.NewReader(output))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "cpu ") {
+			cpuLine = line
+			break
+		}
+	}
+
+	if cpuLine == "" {
+		return 0, fmt.Errorf("could not find cpu info in /proc/stat")
+	}
+
+	// Parse the line to calculate CPU usage.
 	// The format is: cpu  user nice system idle iowait irq softirq steal guest guest_nice
-	fields := strings.Fields(output)
+	fields := strings.Fields(cpuLine)
 	if len(fields) < 10 {
 		return 0, fmt.Errorf("unexpected format of /proc/stat")
 	}
@@ -100,15 +116,19 @@ func (h LinuxHost) MemoryUsage() (float64, error) {
 }
 
 func (h LinuxHost) DiskUsage() (float64, error) {
-	output, err := h.RunCommand("df --output=pcent / | tail -n 1")
+	output, err := h.RunCommand("df --output=pcent /")
 	if err != nil {
 		return 0, err
 	}
 
-	// The output is the percentage of disk space used.
-	output = strings.TrimSpace(output)      // Remove leading/trailing whitespace
-	output = strings.TrimRight(output, "%") // Remove trailing %
-	usage, err := strconv.ParseFloat(output, 64)
+	// Get the last line of the output
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	lastLine := lines[len(lines)-1]
+
+	// The last line is the percentage of disk space used
+	lastLine = strings.TrimSpace(lastLine)      // Remove leading/trailing whitespace
+	lastLine = strings.TrimRight(lastLine, "%") // Remove trailing %
+	usage, err := strconv.ParseFloat(lastLine, 64)
 	if err != nil {
 		return 0, fmt.Errorf("error parsing disk usage: %v", err)
 	}

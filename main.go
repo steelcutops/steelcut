@@ -6,20 +6,32 @@ import (
 	"log"
 	"os"
 
+	"encoding/json"
+	"io/ioutil"
+
 	"github.com/m-217/steelcut/steelcut"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/term"
 )
 
+type HostInfo struct {
+	CPUUsage         float64  `json:"cpuUsage"`
+	MemoryUsage      float64  `json:"memoryUsage"`
+	DiskUsage        float64  `json:"diskUsage"`
+	RunningProcesses []string `json:"runningProcesses"`
+}
+
 var (
 	logFileName string
 	debug       bool
 	logger      = logrus.New()
+	infoDump    bool
 )
 
 func init() {
 	flag.StringVar(&logFileName, "log", "log.txt", "Log file name")
 	flag.BoolVar(&debug, "debug", false, "Enable debug log level")
+	flag.BoolVar(&infoDump, "info", false, "Dump information about the hosts")
 }
 
 func main() {
@@ -89,6 +101,25 @@ func main() {
 		hostGroup.AddHost(server)
 	}
 
+	if infoDump {
+		for _, host := range hostGroup.Hosts {
+			hostInfo, err := getHostInfo(host)
+			if err != nil {
+				log.Fatalf("Failed to get host info: %v", err)
+			}
+
+			b, err := json.MarshalIndent(hostInfo, "", "  ")
+			if err != nil {
+				log.Fatalf("Failed to serialize host info: %v", err)
+			}
+
+			err = ioutil.WriteFile("host_info.json", b, 0644)
+			if err != nil {
+				log.Fatalf("Failed to write host info to file: %v", err)
+			}
+		}
+	}
+
 	results, errors := hostGroup.RunCommandOnAll("uname -a")
 
 	if len(errors) > 0 {
@@ -103,4 +134,33 @@ func main() {
 		fmt.Printf("Result for host %d: %s\n", i+1, result)
 	}
 
+}
+
+func getHostInfo(host steelcut.Host) (HostInfo, error) {
+	cpuUsage, err := host.CPUUsage()
+	if err != nil {
+		return HostInfo{}, err
+	}
+
+	memoryUsage, err := host.MemoryUsage()
+	if err != nil {
+		return HostInfo{}, err
+	}
+
+	diskUsage, err := host.DiskUsage()
+	if err != nil {
+		return HostInfo{}, err
+	}
+
+	runningProcesses, err := host.RunningProcesses()
+	if err != nil {
+		return HostInfo{}, err
+	}
+
+	return HostInfo{
+		CPUUsage:         cpuUsage,
+		MemoryUsage:      memoryUsage,
+		DiskUsage:        diskUsage,
+		RunningProcesses: runningProcesses,
+	}, nil
 }
