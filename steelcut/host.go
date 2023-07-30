@@ -10,9 +10,6 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-type Update struct {
-	// Fields for the Update struct
-}
 type SystemReporter interface {
 	CPUUsage() (float64, error)
 	MemoryUsage() (float64, error)
