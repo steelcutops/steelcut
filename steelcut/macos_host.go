@@ -12,7 +12,6 @@ type MacOSHost struct {
 	PackageManager PackageManager
 }
 
-
 func (h MacOSHost) Reboot() error {
 	_, err := h.RunCommand("sudo reboot")
 	return err
@@ -22,7 +21,6 @@ func (h MacOSHost) Shutdown() error {
 	_, err := h.RunCommand("sudo shutdown -h now")
 	return err
 }
-
 
 func (h MacOSHost) ListPackages() ([]string, error) {
 	return h.PackageManager.ListPackages(h.UnixHost)
