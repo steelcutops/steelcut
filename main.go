@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"encoding/json"
-	"io/ioutil"
 
 	"github.com/m-217/steelcut/steelcut"
 	"github.com/sirupsen/logrus"
@@ -119,7 +118,7 @@ func main() {
 				log.Fatalf("Failed to serialize host info: %v", err)
 			}
 
-			err = ioutil.WriteFile("host_info.json", b, 0644)
+			err = os.WriteFile("host_info.json", b, 0644)
 			if err != nil {
 				log.Fatalf("Failed to write host info to file: %v", err)
 			}
