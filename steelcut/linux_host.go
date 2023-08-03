@@ -8,7 +8,7 @@ import (
 )
 
 type LinuxHost struct {
-	UnixHost
+	*UnixHost
 	PackageManager PackageManager
 }
 

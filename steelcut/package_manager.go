@@ -6,12 +6,10 @@ import (
 )
 
 type PackageManager interface {
-	ListPackages(host UnixHost) ([]string, error)
-	AddPackage(host UnixHost, pkg string) error
-	RemovePackage(host UnixHost, pkg string) error
-	UpgradePackage(host UnixHost, pkg string) error
-	CheckOSUpdates(host UnixHost) ([]string, error)
-	UpgradeOS(host UnixHost) ([]Update, error)
+	ListPackages(*UnixHost) ([]string, error)
+	AddPackage(*UnixHost, string) error
+	RemovePackage(*UnixHost, string) error
+	UpgradePackage(*UnixHost, string) error
 }
 
 type Update struct {
@@ -21,7 +19,7 @@ type Update struct {
 
 type YumPackageManager struct{}
 
-func (pm YumPackageManager) ListPackages(host UnixHost) ([]string, error) {
+func (pm YumPackageManager) ListPackages(host *UnixHost) ([]string, error) {
 	output, err := host.RunCommand("yum list installed")
 	if err != nil {
 		return nil, err
@@ -31,22 +29,22 @@ func (pm YumPackageManager) ListPackages(host UnixHost) ([]string, error) {
 	return packages, nil
 }
 
-func (pm YumPackageManager) AddPackage(host UnixHost, pkg string) error {
+func (pm YumPackageManager) AddPackage(host *UnixHost, pkg string) error {
 	_, err := host.RunCommand(fmt.Sprintf("yum install -y %s", pkg))
 	return err
 }
 
-func (pm YumPackageManager) RemovePackage(host UnixHost, pkg string) error {
+func (pm YumPackageManager) RemovePackage(host *UnixHost, pkg string) error {
 	_, err := host.RunCommand(fmt.Sprintf("yum remove -y %s", pkg))
 	return err
 }
 
-func (pm YumPackageManager) UpgradePackage(host UnixHost, pkg string) error {
+func (pm YumPackageManager) UpgradePackage(host *UnixHost, pkg string) error {
 	_, err := host.RunCommand(fmt.Sprintf("yum upgrade -y %s", pkg))
 	return err
 }
 
-func (pm YumPackageManager) CheckOSUpdates(host UnixHost) ([]string, error) {
+func (pm YumPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	output, err := host.RunCommand("yum check-update")
 	if err != nil {
 		return nil, err
@@ -56,7 +54,7 @@ func (pm YumPackageManager) CheckOSUpdates(host UnixHost) ([]string, error) {
 	return updates, nil
 }
 
-func (pm YumPackageManager) UpgradeOS(host UnixHost) ([]Update, error) {
+func (pm YumPackageManager) UpgradeOS(host *UnixHost) ([]Update, error) {
 	output, err := host.RunCommand("yum upgrade -y")
 	if err != nil {
 		return nil, fmt.Errorf("failed to upgrade OS: %v", err)
@@ -67,7 +65,7 @@ func (pm YumPackageManager) UpgradeOS(host UnixHost) ([]Update, error) {
 
 type AptPackageManager struct{}
 
-func (pm AptPackageManager) ListPackages(host UnixHost) ([]string, error) {
+func (pm AptPackageManager) ListPackages(host *UnixHost) ([]string, error) {
 	output, err := host.RunCommand("apt list --installed")
 	if err != nil {
 		return nil, err
@@ -77,22 +75,22 @@ func (pm AptPackageManager) ListPackages(host UnixHost) ([]string, error) {
 	return packages, nil
 }
 
-func (pm AptPackageManager) AddPackage(host UnixHost, pkg string) error {
+func (pm AptPackageManager) AddPackage(host *UnixHost, pkg string) error {
 	_, err := host.RunCommand(fmt.Sprintf("apt install -y %s", pkg))
 	return err
 }
 
-func (pm AptPackageManager) RemovePackage(host UnixHost, pkg string) error {
+func (pm AptPackageManager) RemovePackage(host *UnixHost, pkg string) error {
 	_, err := host.RunCommand(fmt.Sprintf("apt remove -y %s", pkg))
 	return err
 }
 
-func (pm AptPackageManager) UpgradePackage(host UnixHost, pkg string) error {
+func (pm AptPackageManager) UpgradePackage(host *UnixHost, pkg string) error {
 	_, err := host.RunCommand(fmt.Sprintf("apt upgrade -y %s", pkg))
 	return err
 }
 
-func (pm AptPackageManager) CheckOSUpdates(host UnixHost) ([]string, error) {
+func (pm AptPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	_, err := host.RunCommand("apt update")
 	if err != nil {
 		return nil, err
@@ -107,7 +105,7 @@ func (pm AptPackageManager) CheckOSUpdates(host UnixHost) ([]string, error) {
 	return updates, nil
 }
 
-func (pm AptPackageManager) UpgradeOS(host UnixHost) ([]Update, error) {
+func (pm AptPackageManager) UpgradeOS(host *UnixHost) ([]Update, error) {
 	output, err := host.RunCommand("apt upgrade -y")
 	if err != nil {
 		return nil, fmt.Errorf("failed to upgrade OS: %v", err)
@@ -118,7 +116,7 @@ func (pm AptPackageManager) UpgradeOS(host UnixHost) ([]Update, error) {
 
 type BrewPackageManager struct{}
 
-func (pm BrewPackageManager) ListPackages(host UnixHost) ([]string, error) {
+func (pm BrewPackageManager) ListPackages(host *UnixHost) ([]string, error) {
 	output, err := host.RunCommand("brew list")
 	if err != nil {
 		return nil, err
@@ -128,22 +126,22 @@ func (pm BrewPackageManager) ListPackages(host UnixHost) ([]string, error) {
 	return packages, nil
 }
 
-func (pm BrewPackageManager) AddPackage(host UnixHost, pkg string) error {
+func (pm BrewPackageManager) AddPackage(host *UnixHost, pkg string) error {
 	_, err := host.RunCommand(fmt.Sprintf("brew install %s", pkg))
 	return err
 }
 
-func (pm BrewPackageManager) RemovePackage(host UnixHost, pkg string) error {
+func (pm BrewPackageManager) RemovePackage(host *UnixHost, pkg string) error {
 	_, err := host.RunCommand(fmt.Sprintf("brew uninstall %s", pkg))
 	return err
 }
 
-func (pm BrewPackageManager) UpgradePackage(host UnixHost, pkg string) error {
+func (pm BrewPackageManager) UpgradePackage(host *UnixHost, pkg string) error {
 	_, err := host.RunCommand(fmt.Sprintf("brew upgrade %s", pkg))
 	return err
 }
 
-func (pm BrewPackageManager) CheckOSUpdates(host UnixHost) ([]string, error) {
+func (pm BrewPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	output, err := host.RunCommand("brew outdated")
 	if err != nil {
 		return nil, err
@@ -153,7 +151,7 @@ func (pm BrewPackageManager) CheckOSUpdates(host UnixHost) ([]string, error) {
 	return updates, nil
 }
 
-func (pm BrewPackageManager) UpgradeOS(host UnixHost) ([]Update, error) {
+func (pm BrewPackageManager) UpgradeOS(host *UnixHost) ([]Update, error) {
 	output, err := host.RunCommand("brew upgrade")
 	if err != nil {
 		return nil, fmt.Errorf("failed to upgrade OS: %v", err)
@@ -182,4 +180,3 @@ func parseUpdates(output string) []Update {
 
 	return updates
 }
-

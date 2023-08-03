@@ -22,16 +22,22 @@ type HostInfo struct {
 }
 
 var (
-	logFileName string
-	debug       bool
-	logger      = logrus.New()
-	infoDump    bool
+	logFileName     string
+	debug           bool
+	logger          = logrus.New()
+	infoDump        bool
+	listPackages    bool
+	listUpgradable  bool
+	upgradePackages bool
 )
 
 func init() {
 	flag.StringVar(&logFileName, "log", "log.txt", "Log file name")
 	flag.BoolVar(&debug, "debug", false, "Enable debug log level")
 	flag.BoolVar(&infoDump, "info", false, "Dump information about the hosts")
+	flag.BoolVar(&listPackages, "list", false, "List all packages")
+	flag.BoolVar(&listUpgradable, "upgradable", false, "List all upgradable packages")
+	flag.BoolVar(&upgradePackages, "upgrade", false, "Upgrade all packages")
 }
 
 func main() {
@@ -116,6 +122,30 @@ func main() {
 			err = ioutil.WriteFile("host_info.json", b, 0644)
 			if err != nil {
 				log.Fatalf("Failed to write host info to file: %v", err)
+			}
+		}
+	}
+
+	if listPackages {
+		for _, host := range hostGroup.Hosts {
+			packages, err := host.ListPackages()
+			if err != nil {
+				log.Fatalf("Failed to list packages: %v", err)
+			}
+			for _, pkg := range packages {
+				fmt.Println(pkg)
+			}
+		}
+	}
+
+	if listUpgradable {
+		for _, host := range hostGroup.Hosts {
+			upgradable, err := host.CheckUpdates()
+			if err != nil {
+				log.Fatalf("Failed to check OS updates: %v", err)
+			}
+			for _, pkg := range upgradable {
+				fmt.Println(pkg)
 			}
 		}
 	}

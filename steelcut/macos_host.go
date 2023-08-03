@@ -8,7 +8,7 @@ import (
 )
 
 type MacOSHost struct {
-	UnixHost
+	*UnixHost
 	PackageManager PackageManager
 }
 

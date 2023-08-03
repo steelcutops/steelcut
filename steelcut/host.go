@@ -55,52 +55,6 @@ func WithOS(os string) HostOption {
 	}
 }
 
-func NewHost(hostname string, options ...HostOption) (Host, error) {
-	host := &UnixHost{
-		Hostname: hostname,
-	}
-
-	for _, option := range options {
-		option(host)
-	}
-
-	// If the username has not been specified, use the current user's username.
-	if host.User == "" {
-		currentUser, err := user.Current()
-		if err != nil {
-			return nil, fmt.Errorf("could not get current user: %v", err)
-		}
-		host.User = currentUser.Username
-	}
-
-	// If the OS has not been specified, determine it.
-	if host.OS == "" {
-		os, err := determineOS(host)
-		if err != nil {
-			return nil, err
-		}
-		host.OS = os
-	}
-
-	switch host.OS {
-	case "Linux":
-		// Determine the package manager.
-		// Here we just guess based on the contents of /etc/os-release.
-		osRelease, _ := host.RunCommand("cat /etc/os-release")
-		if strings.Contains(osRelease, "ID=ubuntu") || strings.Contains(osRelease, "ID=debian") {
-			return LinuxHost{*host, AptPackageManager{}}, nil
-		} else {
-			// Assume Red Hat/CentOS/Fedora if not Debian/Ubuntu.
-			return LinuxHost{*host, YumPackageManager{}}, nil
-		}
-	case "Darwin":
-		return MacOSHost{*host, BrewPackageManager{}}, nil
-	default:
-		return nil, fmt.Errorf("unsupported operating system: %s", host.OS)
-	}
-
-}
-
 func determineOS(host *UnixHost) (string, error) {
 	output, err := host.RunCommand("uname")
 	if err != nil {
@@ -108,6 +62,54 @@ func determineOS(host *UnixHost) (string, error) {
 	}
 
 	return strings.TrimSpace(output), nil
+}
+
+func NewHost(hostname string, options ...HostOption) (Host, error) {
+	unixHost := &UnixHost{
+		Hostname: hostname,
+	}
+
+	for _, option := range options {
+		option(unixHost)
+	}
+
+	// If the username has not been specified, use the current user's username.
+	if unixHost.User == "" {
+		currentUser, err := user.Current()
+		if err != nil {
+			return nil, fmt.Errorf("could not get current user: %v", err)
+		}
+		unixHost.User = currentUser.Username
+	}
+
+	// If the OS has not been specified, determine it.
+	if unixHost.OS == "" {
+		os, err := determineOS(unixHost)
+		if err != nil {
+			return nil, err
+		}
+		unixHost.OS = os
+	}
+
+	switch unixHost.OS {
+	case "Linux":
+		linuxHost := &LinuxHost{UnixHost: unixHost}
+		// Determine the package manager.
+		osRelease, _ := linuxHost.RunCommand("cat /etc/os-release")
+		if strings.Contains(osRelease, "ID=ubuntu") || strings.Contains(osRelease, "ID=debian") {
+			linuxHost.PackageManager = AptPackageManager{} // Assign PackageManager
+		} else {
+			// Assume Red Hat/CentOS/Fedora if not Debian/Ubuntu.
+			linuxHost.PackageManager = YumPackageManager{} // Assign PackageManager
+		}
+		return linuxHost, nil
+	case "Darwin":
+		macHost := &MacOSHost{UnixHost: unixHost}
+		macHost.PackageManager = BrewPackageManager{} // Assign PackageManager
+		return macHost, nil
+	default:
+		return nil, fmt.Errorf("unsupported operating system: %s", unixHost.OS)
+	}
 }
 
 func (h UnixHost) RunCommand(cmd string) (string, error) {
