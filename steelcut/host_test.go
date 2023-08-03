@@ -10,9 +10,9 @@ func TestNewHost(t *testing.T) {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
-	linuxHost, ok := host.(LinuxHost)
+	linuxHost, ok := host.(*LinuxHost)
 	if !ok {
-		t.Fatalf("Expected a LinuxHost, got: %T", host)
+		t.Fatalf("Expected a *LinuxHost, got: %T", host)
 	}
 
 	if linuxHost.Hostname != "localhost" {
@@ -26,9 +26,9 @@ func TestNewHost_MacOS(t *testing.T) {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
-	macOSHost, ok := host.(MacOSHost)
+	macOSHost, ok := host.(*MacOSHost)
 	if !ok {
-		t.Fatalf("Expected a MacOSHost, got: %T", host)
+		t.Fatalf("Expected a *MacOSHost, got: %T", host)
 	}
 
 	if macOSHost.Hostname != "localhost" {
