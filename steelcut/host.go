@@ -10,6 +10,16 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+type SSHClient interface {
+	Dial(network, addr string, config *ssh.ClientConfig) (*ssh.Client, error)
+}
+
+type RealSSHClient struct{}
+
+func (c RealSSHClient) Dial(network, addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
+	return ssh.Dial(network, addr, config)
+}
+
 type SystemReporter interface {
 	CPUUsage() (float64, error)
 	MemoryUsage() (float64, error)
@@ -52,6 +62,12 @@ func WithKeyPassphrase(keyPassphrase string) HostOption {
 func WithOS(os string) HostOption {
 	return func(host *UnixHost) {
 		host.OS = os
+	}
+}
+
+func WithSSHClient(client SSHClient) HostOption {
+	return func(h *UnixHost) {
+		h.SSHClient = client
 	}
 }
 
@@ -161,7 +177,7 @@ func (h UnixHost) RunCommand(cmd string) (string, error) {
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	client, err := ssh.Dial("tcp", h.Hostname+":22", config)
+	client, err := h.SSHClient.Dial("tcp", h.Hostname+":22", config)
 	if err != nil {
 		return "", err
 	}

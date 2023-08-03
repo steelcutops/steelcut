@@ -6,4 +6,5 @@ type UnixHost struct {
 	Password      string
 	KeyPassphrase string
 	OS            string
+	SSHClient     SSHClient
 }

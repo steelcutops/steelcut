@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 
+	"golang.org/x/crypto/ssh"
+
 	"encoding/json"
 
 	"github.com/m-217/steelcut/steelcut"
@@ -37,6 +39,12 @@ func init() {
 	flag.BoolVar(&listPackages, "list", false, "List all packages")
 	flag.BoolVar(&listUpgradable, "upgradable", false, "List all upgradable packages")
 	flag.BoolVar(&upgradePackages, "upgrade", false, "Upgrade all packages")
+}
+
+type SSHClientImpl struct{}
+
+func (s *SSHClientImpl) Dial(network, addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
+	return ssh.Dial(network, addr, config)
 }
 
 func main() {
@@ -98,6 +106,10 @@ func main() {
 	hostGroup := steelcut.NewHostGroup()
 
 	hosts := []string{*hostname, "localhost"}
+
+	client := &SSHClientImpl{}
+	options = append(options, steelcut.WithSSHClient(client))
+
 	for _, host := range hosts {
 		server, err := steelcut.NewHost(host, options...)
 		if err != nil {
