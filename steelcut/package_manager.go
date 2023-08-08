@@ -32,19 +32,20 @@ func (pm YumPackageManager) ListPackages(host *UnixHost) ([]string, error) {
 }
 
 func (pm YumPackageManager) AddPackage(host *UnixHost, pkg string) error {
-	_, err := host.RunCommand(fmt.Sprintf("yum install -y %s", pkg))
+	_, err := host.RunCommand(fmt.Sprintf("yum install -y %s", pkg), true)
 	return err
 }
 
 func (pm YumPackageManager) RemovePackage(host *UnixHost, pkg string) error {
-	_, err := host.RunCommand(fmt.Sprintf("yum remove -y %s", pkg))
+	_, err := host.RunCommand(fmt.Sprintf("yum remove -y %s", pkg), true)
 	return err
 }
 
 func (pm YumPackageManager) UpgradePackage(host *UnixHost, pkg string) error {
-	_, err := host.RunCommand(fmt.Sprintf("yum upgrade -y %s", pkg))
+	_, err := host.RunCommand(fmt.Sprintf("yum upgrade -y %s", pkg), true)
 	return err
 }
+
 
 func (pm YumPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	output, err := host.RunCommand("yum check-update")
@@ -57,7 +58,7 @@ func (pm YumPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 }
 
 func (pm YumPackageManager) UpgradeOS(host *UnixHost) ([]Update, error) {
-	output, err := host.RunCommand("yum upgrade -y")
+	output, err := host.RunCommand("yum upgrade -y", true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upgrade OS: %v", err)
 	}
@@ -78,29 +79,29 @@ func (pm AptPackageManager) ListPackages(host *UnixHost) ([]string, error) {
 }
 
 func (pm AptPackageManager) AddPackage(host *UnixHost, pkg string) error {
-	_, err := host.RunCommand(fmt.Sprintf("apt install -y %s", pkg))
+	_, err := host.RunCommand(fmt.Sprintf("apt install -y %s", pkg), true)
 	return err
 }
 
 func (pm AptPackageManager) RemovePackage(host *UnixHost, pkg string) error {
-	_, err := host.RunCommand(fmt.Sprintf("apt remove -y %s", pkg))
+	_, err := host.RunCommand(fmt.Sprintf("apt remove -y %s", pkg), true)
 	return err
 }
 
 func (pm AptPackageManager) UpgradePackage(host *UnixHost, pkg string) error {
-	_, err := host.RunCommand(fmt.Sprintf("apt upgrade -y %s", pkg))
+	_, err := host.RunCommand(fmt.Sprintf("apt upgrade -y %s", pkg), true)
 	return err
 }
 
 func (pm AptPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	log.Print("Checking for OS updates")
-	_, err := host.RunCommand("apt update")
+	_, err := host.RunCommand("apt update", true)
 	if err != nil {
-		log.Fatal("Failed to update apt")
-		return nil, err
+		log.Fatalf("Failed to update apt: %v", err)
+		return nil, fmt.Errorf("Failed to update apt: %w", err)
 	}
 
-	output, err := host.RunCommand("apt list --upgradable")
+	output, err := host.RunCommand("apt list --upgradable", true)
 	if err != nil {
 		return nil, err
 	}
@@ -109,8 +110,9 @@ func (pm AptPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	return updates, nil
 }
 
+
 func (pm AptPackageManager) UpgradeOS(host *UnixHost) ([]Update, error) {
-	output, err := host.RunCommand("apt upgrade -y")
+	output, err := host.RunCommand("apt upgrade -y", true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upgrade OS: %v", err)
 	}
