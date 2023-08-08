@@ -6,5 +6,6 @@ type UnixHost struct {
 	Password      string
 	KeyPassphrase string
 	OS            string
+	SudoPassword string
 	SSHClient     SSHClient
 }

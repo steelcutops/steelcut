@@ -71,6 +71,13 @@ func WithSSHClient(client SSHClient) HostOption {
 	}
 }
 
+func WithSudoPassword(password string) HostOption {
+	return func(host *UnixHost) {
+		host.SudoPassword = password
+	}
+}
+
+
 func determineOS(host *UnixHost) (string, error) {
 	output, err := host.RunCommand("uname")
 	if err != nil {
@@ -151,7 +158,9 @@ func (h UnixHost) RunCommand(cmd string, options ...interface{}) (string, error)
 
 func (h UnixHost) runCommandInternal(cmd string, useSudo bool, sudoPassword string) (string, error) {
 	if useSudo {
+		log.Printf("Using sudo for command '%s' on host '%s'\n", cmd, h.Hostname)
 		cmd = "sudo -S " + cmd // -S option makes sudo read password from standard input
+		sudoPassword = h.SudoPassword
 	}
 
 	log.Printf("Running command '%s' on host '%s' with user '%s'\n", cmd, h.Hostname, h.User)
@@ -163,11 +172,13 @@ func (h UnixHost) runCommandInternal(cmd string, useSudo bool, sudoPassword stri
 
 		command := exec.Command(head, parts...)
 		if useSudo && sudoPassword != "" {
+			log.Println("Providing sudo password through stdin for local command")
 			command.Stdin = strings.NewReader(sudoPassword + "\n") // Write password to stdin
 		}
 
 		out, err := command.Output()
 		if err != nil {
+			log.Printf("Error running local command with sudo: %v\n", err)
 			return "", err
 		}
 
@@ -219,8 +230,14 @@ func (h UnixHost) runCommandInternal(cmd string, useSudo bool, sudoPassword stri
 	}
 	defer session.Close()
 
+	if useSudo && sudoPassword != "" {
+		log.Println("Providing sudo password through stdin for SSH command")
+		session.Stdin = strings.NewReader(sudoPassword + "\n") // Write password to stdin
+	}
+
 	output, err := session.CombinedOutput(cmd)
 	if err != nil {
+		log.Printf("Error running command over SSH with sudo: %v\n", err)
 		return "", err
 	}
 

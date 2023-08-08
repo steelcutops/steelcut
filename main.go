@@ -113,6 +113,8 @@ func main() {
 	username := flag.String("username", "", "Username to use for SSH connection")
 	passwordPrompt := flag.Bool("password", false, "Use a password for SSH connection")
 	keyPassPrompt := flag.Bool("keypass", false, "Passphrase for decrypting SSH keys")
+	sudoPasswordPrompt := flag.Bool("sudo-password", false, "Prompt for sudo password")
+
 
 	flag.Parse()
 
@@ -149,6 +151,21 @@ func main() {
 
 	if *hostname == "" {
 		*hostname = "localhost"
+	}
+
+	var sudoPassword string
+	if *sudoPasswordPrompt {
+		fmt.Print("Enter the sudo password: ")
+		sudoPasswordBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			log.Fatalf("Failed to read sudo password: %v", err)
+		}
+		sudoPassword = string(sudoPasswordBytes)
+		fmt.Println()
+	}
+
+	if sudoPassword != "" {
+		options = append(options, steelcut.WithSudoPassword(sudoPassword))
 	}
 
 	hostGroup := steelcut.NewHostGroup()
