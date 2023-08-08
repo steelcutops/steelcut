@@ -113,9 +113,11 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 		// Determine the package manager.
 		osRelease, _ := linuxHost.RunCommand("cat /etc/os-release")
 		if strings.Contains(osRelease, "ID=ubuntu") || strings.Contains(osRelease, "ID=debian") {
+			log.Println("Detected Debian/Ubuntu")
 			linuxHost.PackageManager = AptPackageManager{} // Assign PackageManager
 		} else {
 			// Assume Red Hat/CentOS/Fedora if not Debian/Ubuntu.
+			log.Println("Detected Red Hat/CentOS/Fedora")
 			linuxHost.PackageManager = YumPackageManager{} // Assign PackageManager
 		}
 		return linuxHost, nil

@@ -29,8 +29,28 @@ func (h LinuxHost) UpgradePackage(pkg string) error {
 }
 
 func (h LinuxHost) CheckUpdates() ([]Update, error) {
-	// Implement the update check for Linux hosts.
-	return []Update{}, nil
+	updates, err := h.PackageManager.CheckOSUpdates(h.UnixHost)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a slice to hold the parsed updates
+	var parsedUpdates []Update
+
+	for _, update := range updates {
+		// Assuming the update string contains the package name and version, separated by a space
+		parts := strings.SplitN(update, " ", 2)
+		if len(parts) == 2 {
+			packageName := parts[0]
+			version := parts[1]
+			parsedUpdates = append(parsedUpdates, Update{
+				PackageName: packageName,
+				Version:     version,
+			})
+		}
+	}
+
+	return parsedUpdates, nil
 }
 
 func (h LinuxHost) RunCommand(cmd string) (string, error) {

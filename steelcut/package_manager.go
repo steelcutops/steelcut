@@ -2,6 +2,7 @@ package steelcut
 
 import (
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -10,6 +11,7 @@ type PackageManager interface {
 	AddPackage(*UnixHost, string) error
 	RemovePackage(*UnixHost, string) error
 	UpgradePackage(*UnixHost, string) error
+	CheckOSUpdates(host *UnixHost) ([]string, error)
 }
 
 type Update struct {
@@ -91,8 +93,10 @@ func (pm AptPackageManager) UpgradePackage(host *UnixHost, pkg string) error {
 }
 
 func (pm AptPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
+	log.Print("Checking for OS updates")
 	_, err := host.RunCommand("apt update")
 	if err != nil {
+		log.Fatal("Failed to update apt")
 		return nil, err
 	}
 
@@ -137,7 +141,6 @@ func (pm AptPackageManager) parseAptUpdates(output string) []Update {
 
 	return updates
 }
-
 
 type BrewPackageManager struct{}
 
@@ -205,7 +208,6 @@ func (pm BrewPackageManager) parseUpdates(output string) []Update {
 
 	return updates
 }
-
 
 func parseUpdates(output string) []Update {
 	lines := strings.Split(output, "\n")
