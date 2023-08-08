@@ -153,7 +153,7 @@ func main() {
 
 	hostGroup := steelcut.NewHostGroup()
 
-	hosts := []string{*hostname, "localhost"}
+	hosts := []string{*hostname}
 
 	client := &SSHClientImpl{}
 	options = append(options, steelcut.WithSSHClient(client))
@@ -176,20 +176,6 @@ func main() {
 
 	if listUpgradable {
 		processHosts(hostGroup.Hosts, listUpgradablePackages)
-	}
-
-	results, errors := hostGroup.RunCommandOnAll("uname -a")
-
-	if len(errors) > 0 {
-		for _, err := range errors {
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-	}
-
-	for i, result := range results {
-		fmt.Printf("Result for host %d: %s\n", i+1, result)
 	}
 
 }
