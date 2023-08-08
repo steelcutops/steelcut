@@ -47,6 +47,54 @@ func (s *SSHClientImpl) Dial(network, addr string, config *ssh.ClientConfig) (*s
 	return ssh.Dial(network, addr, config)
 }
 
+func processHosts(hosts []steelcut.Host, action func(host steelcut.Host) error) error {
+	for _, host := range hosts {
+		if err := action(host); err != nil {
+			logger.Error(err)
+		}
+	}
+	return nil
+}
+
+func dumpHostInfo(host steelcut.Host) error {
+	hostInfo, err := getHostInfo(host)
+	if err != nil {
+		return err
+	}
+
+	b, err := json.MarshalIndent(hostInfo, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile("host_info.json", b, 0644)
+	return err
+}
+
+func listAllPackages(host steelcut.Host) error {
+	packages, err := host.ListPackages()
+	if err != nil {
+		return fmt.Errorf("failed to list packages: %v", err)
+	}
+	fmt.Println("Packages:")
+	for _, pkg := range packages {
+		fmt.Println(pkg)
+	}
+	return nil
+}
+
+func listUpgradablePackages(host steelcut.Host) error {
+	upgradable, err := host.CheckUpdates()
+	if err != nil {
+		return fmt.Errorf("failed to check OS updates: %v", err)
+	}
+	fmt.Println("Upgradable packages:")
+	for _, pkg := range upgradable {
+		fmt.Println(pkg)
+	}
+	return nil
+}
+
 func main() {
 	file, err := os.OpenFile(logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
@@ -119,46 +167,15 @@ func main() {
 	}
 
 	if infoDump {
-		for _, host := range hostGroup.Hosts {
-			hostInfo, err := getHostInfo(host)
-			if err != nil {
-				log.Fatalf("Failed to get host info: %v", err)
-			}
-
-			b, err := json.MarshalIndent(hostInfo, "", "  ")
-			if err != nil {
-				log.Fatalf("Failed to serialize host info: %v", err)
-			}
-
-			err = os.WriteFile("host_info.json", b, 0644)
-			if err != nil {
-				log.Fatalf("Failed to write host info to file: %v", err)
-			}
-		}
+		processHosts(hostGroup.Hosts, dumpHostInfo)
 	}
 
 	if listPackages {
-		for _, host := range hostGroup.Hosts {
-			packages, err := host.ListPackages()
-			if err != nil {
-				log.Fatalf("Failed to list packages: %v", err)
-			}
-			for _, pkg := range packages {
-				fmt.Println(pkg)
-			}
-		}
+		processHosts(hostGroup.Hosts, listAllPackages)
 	}
 
 	if listUpgradable {
-		for _, host := range hostGroup.Hosts {
-			upgradable, err := host.CheckUpdates()
-			if err != nil {
-				log.Fatalf("Failed to check OS updates: %v", err)
-			}
-			for _, pkg := range upgradable {
-				fmt.Println(pkg)
-			}
-		}
+		processHosts(hostGroup.Hosts, listUpgradablePackages)
 	}
 
 	results, errors := hostGroup.RunCommandOnAll("uname -a")
