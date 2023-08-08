@@ -130,15 +130,43 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 	}
 }
 
-func (h UnixHost) RunCommand(cmd string) (string, error) {
+func (h UnixHost) RunCommand(cmd string, options ...interface{}) (string, error) {
+	useSudo := false
+	sudoPassword := ""
+
+	// Check if options were provided
+	if len(options) > 0 {
+		if val, ok := options[0].(bool); ok {
+			useSudo = val
+		}
+	}
+	if len(options) > 1 {
+		if val, ok := options[1].(string); ok {
+			sudoPassword = val
+		}
+	}
+
+	return h.runCommandInternal(cmd, useSudo, sudoPassword)
+}
+
+func (h UnixHost) runCommandInternal(cmd string, useSudo bool, sudoPassword string) (string, error) {
+	if useSudo {
+		cmd = "sudo -S " + cmd // -S option makes sudo read password from standard input
+	}
+
 	log.Printf("Running command '%s' on host '%s' with user '%s'\n", cmd, h.Hostname, h.User)
-	// If the hostname is "localhost" or "127.0.0.1", run the command locally.
+
 	if h.Hostname == "localhost" || h.Hostname == "127.0.0.1" {
 		parts := strings.Fields(cmd)
 		head := parts[0]
 		parts = parts[1:]
 
-		out, err := exec.Command(head, parts...).Output()
+		command := exec.Command(head, parts...)
+		if useSudo && sudoPassword != "" {
+			command.Stdin = strings.NewReader(sudoPassword + "\n") // Write password to stdin
+		}
+
+		out, err := command.Output()
 		if err != nil {
 			return "", err
 		}
