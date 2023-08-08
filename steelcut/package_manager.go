@@ -110,9 +110,34 @@ func (pm AptPackageManager) UpgradeOS(host *UnixHost) ([]Update, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to upgrade OS: %v", err)
 	}
-	updates := parseUpdates(output)
+	updates := pm.parseAptUpdates(output)
 	return updates, nil
 }
+
+func (pm AptPackageManager) parseAptUpdates(output string) []Update {
+	lines := strings.Split(output, "\n")
+	var updates []Update
+
+	for _, line := range lines {
+		// Example line: "packagename/xenial 2.0.1 amd64 [upgradable from: 1.9.3]"
+		parts := strings.Fields(line)
+		if len(parts) < 5 || parts[4] != "[upgradable" {
+			continue
+		}
+
+		packageName := strings.Split(parts[0], "/")[0]
+		version := parts[1]
+		update := Update{
+			PackageName: packageName,
+			Version:     version,
+		}
+
+		updates = append(updates, update)
+	}
+
+	return updates
+}
+
 
 type BrewPackageManager struct{}
 
