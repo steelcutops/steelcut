@@ -117,7 +117,7 @@ func (pm AptPackageManager) UpgradeOS(host *UnixHost) ([]Update, error) {
 type BrewPackageManager struct{}
 
 func (pm BrewPackageManager) ListPackages(host *UnixHost) ([]string, error) {
-	output, err := host.RunCommand("brew list")
+	output, err := host.RunCommand("brew list --version")
 	if err != nil {
 		return nil, err
 	}
@@ -156,9 +156,31 @@ func (pm BrewPackageManager) UpgradeOS(host *UnixHost) ([]Update, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to upgrade OS: %v", err)
 	}
-	updates := parseUpdates(output)
+	updates := pm.parseUpdates(output)
 	return updates, nil
 }
+
+func (pm BrewPackageManager) parseUpdates(output string) []Update {
+	lines := strings.Split(output, "\n")
+	var updates []Update
+
+	for _, line := range lines {
+		parts := strings.Split(line, " ")
+		if len(parts) < 2 {
+			continue
+		}
+
+		update := Update{
+			PackageName: parts[0],
+			Version:     parts[1],
+		}
+
+		updates = append(updates, update)
+	}
+
+	return updates
+}
+
 
 func parseUpdates(output string) []Update {
 	lines := strings.Split(output, "\n")
