@@ -15,8 +15,8 @@ func TestNewHost(t *testing.T) {
 		t.Fatalf("Expected a *LinuxHost, got: %T", host)
 	}
 
-	if linuxHost.Hostname != "localhost" {
-		t.Errorf("Expected hostname to be 'localhost', got: %s", linuxHost.Hostname)
+	if linuxHost.Hostname() != "localhost" {
+		t.Errorf("Expected hostname to be 'localhost', got: %s", linuxHost.Hostname())
 	}
 }
 
@@ -31,7 +31,7 @@ func TestNewHost_MacOS(t *testing.T) {
 		t.Fatalf("Expected a *MacOSHost, got: %T", host)
 	}
 
-	if macOSHost.Hostname != "localhost" {
-		t.Errorf("Expected hostname to be 'localhost', got: %s", macOSHost.Hostname)
+	if macOSHost.Hostname() != "localhost" {
+		t.Errorf("Expected hostname to be 'localhost', got: %s", macOSHost.Hostname())
 	}
 }

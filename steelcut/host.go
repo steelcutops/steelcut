@@ -36,6 +36,7 @@ type Host interface {
 	RemovePackage(pkg string) error
 	UpgradePackage(pkg string) error
 	UpgradeAllPackages() ([]Update, error)
+	Hostname() string
 	Reboot() error
 	Shutdown() error
 	SystemReporter
@@ -90,7 +91,7 @@ func determineOS(host *UnixHost) (string, error) {
 
 func NewHost(hostname string, options ...HostOption) (Host, error) {
 	unixHost := &UnixHost{
-		Hostname: hostname,
+		HostString: hostname,
 	}
 
 	for _, option := range options {
@@ -159,12 +160,12 @@ func (h UnixHost) RunCommand(cmd string, options ...interface{}) (string, error)
 
 func (h UnixHost) runCommandInternal(cmd string, useSudo bool, sudoPassword string) (string, error) {
 	if useSudo {
-		log.Printf("Using sudo for command '%s' on host '%s'\n", cmd, h.Hostname)
+		log.Printf("Using sudo for command '%s' on host '%s'\n", cmd, h.Hostname())
 		cmd = "sudo -S " + cmd // -S option makes sudo read password from standard input
 		sudoPassword = h.SudoPassword
 	}
 
-	log.Printf("Running command '%s' on host '%s' with user '%s'\n", cmd, h.Hostname, h.User)
+	log.Printf("Running command '%s' on host '%s' with user '%s'\n", cmd, h.Hostname(), h.User)
 
 	if h.isLocal() {
 		return h.runLocalCommand(cmd, useSudo, sudoPassword)
@@ -174,7 +175,7 @@ func (h UnixHost) runCommandInternal(cmd string, useSudo bool, sudoPassword stri
 }
 
 func (h UnixHost) isLocal() bool {
-	return h.Hostname == "localhost" || h.Hostname == "127.0.0.1"
+	return h.Hostname() == "localhost" || h.Hostname() == "127.0.0.1"
 }
 
 func (h UnixHost) runLocalCommand(cmd string, useSudo bool, sudoPassword string) (string, error) {
@@ -213,7 +214,7 @@ func (h UnixHost) runRemoteCommand(cmd string, useSudo bool, sudoPassword string
 		return "", err
 	}
 
-	client, err := h.SSHClient.Dial("tcp", h.Hostname+":22", config)
+	client, err := h.SSHClient.Dial("tcp", h.Hostname()+":22", config)
 	if err != nil {
 		return "", err
 	}

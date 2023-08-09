@@ -1,11 +1,15 @@
 package steelcut
 
 type UnixHost struct {
-	Hostname      string
 	User          string
 	Password      string
 	KeyPassphrase string
 	OS            string
 	SudoPassword  string
 	SSHClient     SSHClient
+	HostString    string
+}
+
+func (h *UnixHost) Hostname() string {
+	return h.HostString // Return the renamed field
 }

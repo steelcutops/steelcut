@@ -129,7 +129,10 @@ func dumpHostInfo(host steelcut.Host) error {
 		return err
 	}
 
-	err = os.WriteFile("host_info.json", b, 0644)
+	// Use the hostname to create a unique file name for each host
+	fileName := fmt.Sprintf("host_info_%s.json", host.Hostname())
+
+	err = os.WriteFile(fileName, b, 0644)
 	return err
 }
 
