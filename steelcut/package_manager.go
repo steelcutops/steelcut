@@ -60,7 +60,7 @@ func (pm YumPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 func (pm YumPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
 	output, err := host.RunCommand("yum update -y", true)
 	if err != nil {
-		return nil, fmt.Errorf("failed to upgrade all packages: %v", err)
+		return nil, fmt.Errorf("failed to upgrade all packages: %v, Output: %s", err, output)
 	}
 	updates := parseUpdates(output)
 	return updates, nil
@@ -96,11 +96,12 @@ func (pm AptPackageManager) UpgradePackage(host *UnixHost, pkg string) error {
 func (pm AptPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
 	output, err := host.RunCommand("apt upgrade -y", true)
 	if err != nil {
-		return nil, fmt.Errorf("failed to upgrade all packages: %v", err)
+		return nil, fmt.Errorf("failed to upgrade all packages: %v, Output: %s", err, output)
 	}
 	updates := pm.parseAptUpdates(output)
 	return updates, nil
 }
+
 
 func (pm AptPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	log.Print("Checking for OS updates")
