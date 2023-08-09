@@ -31,7 +31,6 @@ func (km AgentSSHKeyManager) ReadPrivateKeys(_ string) ([]ssh.Signer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not connect to SSH agent: %v", err)
 	}
-	defer conn.Close()
 
 	// Create a new SSH agent client
 	sshAgent := agent.NewClient(conn)
