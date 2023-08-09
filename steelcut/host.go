@@ -165,64 +165,48 @@ func (h UnixHost) runCommandInternal(cmd string, useSudo bool, sudoPassword stri
 
 	log.Printf("Running command '%s' on host '%s' with user '%s'\n", cmd, h.Hostname, h.User)
 
-	if h.Hostname == "localhost" || h.Hostname == "127.0.0.1" {
-		parts := strings.Fields(cmd)
-		head := parts[0]
-		parts = parts[1:]
-
-		if useSudo && sudoPassword != "" {
-			log.Println("Providing sudo password through stdin for local command")
-			sudoCmd := append([]string{"-S", head}, parts...)
-			command := exec.Command("sudo", sudoCmd...)
-			command.Stdin = strings.NewReader(sudoPassword + "\n") // Write password to stdin
-			out, err := command.CombinedOutput()
-			if err != nil {
-				log.Printf("Error running local command with sudo: %v, Output: %s\n", err, string(out))
-				return "", err
-			}
-			return string(out), nil
-		} else {
-			command := exec.Command(head, parts...)
-			out, err := command.Output()
-			if err != nil {
-				log.Printf("Error running local command: %v\n", err)
-				return "", err
-			}
-			return string(out), nil
-		}
+	if h.isLocal() {
+		return h.runLocalCommand(cmd, useSudo, sudoPassword)
 	}
 
-	// Otherwise, run the command over SSH.
-	var authMethod ssh.AuthMethod
+	return h.runRemoteCommand(cmd, useSudo, sudoPassword)
+}
 
-	if h.Password != "" {
-		log.Println("Using password authentication")
-		authMethod = ssh.Password(h.Password)
-	} else {
-		log.Println("Using public key authentication")
-		var keyManager SSHKeyManager
-		if h.KeyPassphrase != "" {
-			keyManager = FileSSHKeyManager{}
-		} else {
-			keyManager = AgentSSHKeyManager{}
-		}
+func (h UnixHost) isLocal() bool {
+	return h.Hostname == "localhost" || h.Hostname == "127.0.0.1"
+}
 
-		keys, err := keyManager.ReadPrivateKeys(h.KeyPassphrase)
+func (h UnixHost) runLocalCommand(cmd string, useSudo bool, sudoPassword string) (string, error) {
+	parts := strings.Fields(cmd)
+	head := parts[0]
+	parts = parts[1:]
+
+	if useSudo && sudoPassword != "" {
+		log.Println("Providing sudo password through stdin for local command")
+		sudoCmd := append([]string{"-S", head}, parts...)
+		command := exec.Command("sudo", sudoCmd...)
+		command.Stdin = strings.NewReader(sudoPassword + "\n") // Write password to stdin
+		out, err := command.CombinedOutput()
 		if err != nil {
+			log.Printf("Error running local command with sudo: %v, Output: %s\n", err, string(out))
 			return "", err
 		}
-
-		authMethod = ssh.PublicKeysCallback(func() ([]ssh.Signer, error) {
-			return keys, nil
-		})
+		return string(out), nil
 	}
 
-	config := &ssh.ClientConfig{
-		User: h.User,
-		Auth: []ssh.AuthMethod{
-			authMethod,
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	command := exec.Command(head, parts...)
+	out, err := command.Output()
+	if err != nil {
+		log.Printf("Error running local command: %v\n", err)
+		return "", err
+	}
+	return string(out), nil
+}
+
+func (h UnixHost) runRemoteCommand(cmd string, useSudo bool, sudoPassword string) (string, error) {
+	config, err := h.getSSHConfig()
+	if err != nil {
+		return "", err
 	}
 
 	client, err := h.SSHClient.Dial("tcp", h.Hostname+":22", config)
@@ -248,4 +232,36 @@ func (h UnixHost) runCommandInternal(cmd string, useSudo bool, sudoPassword stri
 	}
 
 	return string(output), nil
+}
+
+func (h UnixHost) getSSHConfig() (*ssh.ClientConfig, error) {
+	var authMethod ssh.AuthMethod
+
+	if h.Password != "" {
+		log.Println("Using password authentication")
+		authMethod = ssh.Password(h.Password)
+	} else {
+		log.Println("Using public key authentication")
+		var keyManager SSHKeyManager
+		if h.KeyPassphrase != "" {
+			keyManager = FileSSHKeyManager{}
+		} else {
+			keyManager = AgentSSHKeyManager{}
+		}
+
+		keys, err := keyManager.ReadPrivateKeys(h.KeyPassphrase)
+		if err != nil {
+			return nil, err
+		}
+
+		authMethod = ssh.PublicKeysCallback(func() ([]ssh.Signer, error) {
+			return keys, nil
+		})
+	}
+
+	return &ssh.ClientConfig{
+		User:            h.User,
+		Auth:            []ssh.AuthMethod{authMethod},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}, nil
 }
