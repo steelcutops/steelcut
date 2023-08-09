@@ -185,7 +185,8 @@ func (pm BrewPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 }
 
 func (pm BrewPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
-	output, err := host.RunCommand("brew upgrade", true)
+	// We explcitly don't want to run as root here, as brew will complain
+	output, err := host.RunCommand("brew upgrade", false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upgrade all packages: %v", err)
 	}

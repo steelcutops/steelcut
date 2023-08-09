@@ -171,19 +171,26 @@ func (h UnixHost) runCommandInternal(cmd string, useSudo bool, sudoPassword stri
 		head := parts[0]
 		parts = parts[1:]
 
-		command := exec.Command(head, parts...)
 		if useSudo && sudoPassword != "" {
 			log.Println("Providing sudo password through stdin for local command")
+			sudoCmd := append([]string{"-S", head}, parts...)
+			command := exec.Command("sudo", sudoCmd...)
 			command.Stdin = strings.NewReader(sudoPassword + "\n") // Write password to stdin
+			out, err := command.CombinedOutput()
+			if err != nil {
+				log.Printf("Error running local command with sudo: %v, Output: %s\n", err, string(out))
+				return "", err
+			}
+			return string(out), nil
+		} else {
+			command := exec.Command(head, parts...)
+			out, err := command.Output()
+			if err != nil {
+				log.Printf("Error running local command: %v\n", err)
+				return "", err
+			}
+			return string(out), nil
 		}
-
-		out, err := command.Output()
-		if err != nil {
-			log.Printf("Error running local command with sudo: %v\n", err)
-			return "", err
-		}
-
-		return string(out), nil
 	}
 
 	// Otherwise, run the command over SSH.
@@ -232,7 +239,6 @@ func (h UnixHost) runCommandInternal(cmd string, useSudo bool, sudoPassword stri
 	defer session.Close()
 
 	if useSudo && sudoPassword != "" {
-		log.Println("Providing sudo password through stdin for SSH command")
 		session.Stdin = strings.NewReader(sudoPassword + "\n") // Write password to stdin
 	}
 

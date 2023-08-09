@@ -96,12 +96,12 @@ func listUpgradablePackages(host steelcut.Host) error {
 }
 
 func upgradeAllPackages(host steelcut.Host) error {
-    _, err := host.UpgradeAllPackages()
-    if err != nil {
-        return fmt.Errorf("failed to upgrade packages: %v", err)
-    }
-    fmt.Println("Successfully upgraded all packages.")
-    return nil
+	_, err := host.UpgradeAllPackages()
+	if err != nil {
+		return fmt.Errorf("failed to upgrade packages: %v", err)
+	}
+	fmt.Println("Successfully upgraded all packages.")
+	return nil
 }
 
 func main() {
@@ -123,7 +123,6 @@ func main() {
 	passwordPrompt := flag.Bool("password", false, "Use a password for SSH connection")
 	keyPassPrompt := flag.Bool("keypass", false, "Passphrase for decrypting SSH keys")
 	sudoPasswordPrompt := flag.Bool("sudo-password", false, "Prompt for sudo password")
-
 
 	flag.Parse()
 
@@ -205,8 +204,8 @@ func main() {
 	}
 
 	if upgradePackages {
-        processHosts(hostGroup.Hosts, upgradeAllPackages)
-    }
+		processHosts(hostGroup.Hosts, upgradeAllPackages)
+	}
 
 }
 
