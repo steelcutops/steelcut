@@ -47,7 +47,6 @@ func (pm YumPackageManager) UpgradePackage(host *UnixHost, pkg string) error {
 	return err
 }
 
-
 func (pm YumPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	output, err := host.RunCommand("yum check-update")
 	if err != nil {
@@ -66,7 +65,6 @@ func (pm YumPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
 	updates := parseUpdates(output)
 	return updates, nil
 }
-
 
 type AptPackageManager struct{}
 
@@ -104,7 +102,6 @@ func (pm AptPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
 	return updates, nil
 }
 
-
 func (pm AptPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	log.Print("Checking for OS updates")
 	_, err := host.RunCommand("apt update", true)
@@ -121,7 +118,6 @@ func (pm AptPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	updates := strings.Split(output, "\n")
 	return updates, nil
 }
-
 
 func (pm AptPackageManager) parseAptUpdates(output string) []Update {
 	lines := strings.Split(output, "\n")
@@ -185,15 +181,14 @@ func (pm BrewPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 }
 
 func (pm BrewPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
-	// We explcitly don't want to run as root here, as brew will complain
+	// We explicitly don't want to run as root here, as brew will complain
 	output, err := host.RunCommand("brew upgrade", false)
 	if err != nil {
-		return nil, fmt.Errorf("failed to upgrade all packages: %v", err)
+		return nil, fmt.Errorf("failed to upgrade all packages: %v, Output: %s", err, output)
 	}
 	updates := pm.parseUpdates(output)
 	return updates, nil
 }
-
 
 func (pm BrewPackageManager) parseUpdates(output string) []Update {
 	lines := strings.Split(output, "\n")
