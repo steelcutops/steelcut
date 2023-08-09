@@ -30,6 +30,7 @@ var (
 	listPackages    bool
 	listUpgradable  bool
 	upgradePackages bool
+	execCommand     string
 )
 
 func init() {
@@ -39,12 +40,22 @@ func init() {
 	flag.BoolVar(&listPackages, "list", false, "List all packages")
 	flag.BoolVar(&listUpgradable, "upgradable", false, "List all upgradable packages")
 	flag.BoolVar(&upgradePackages, "upgrade", false, "Upgrade all packages")
+	flag.StringVar(&execCommand, "exec", "", "Execute command on the host")
 }
 
 type SSHClientImpl struct{}
 
 func (s *SSHClientImpl) Dial(network, addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
 	return ssh.Dial(network, addr, config)
+}
+
+func executeCommand(host steelcut.Host, command string) error {
+	output, err := host.RunCommand(command)
+	if err != nil {
+		return fmt.Errorf("failed to execute command: %v", err)
+	}
+	fmt.Printf("Output of command '%s':\n%s\n", command, output)
+	return nil
 }
 
 func processHosts(hosts []steelcut.Host, action func(host steelcut.Host) error) error {
@@ -205,6 +216,12 @@ func main() {
 
 	if upgradePackages {
 		processHosts(hostGroup.Hosts, upgradeAllPackages)
+	}
+
+	if execCommand != "" {
+		processHosts(hostGroup.Hosts, func(host steelcut.Host) error {
+			return executeCommand(host, execCommand)
+		})
 	}
 
 }
