@@ -28,6 +28,10 @@ func (h LinuxHost) UpgradePackage(pkg string) error {
 	return h.PackageManager.UpgradePackage(h.UnixHost, pkg)
 }
 
+func (h LinuxHost) UpgradeAllPackages() ([]Update, error) {
+    return h.PackageManager.UpgradeAll(h.UnixHost)
+}
+
 func (h LinuxHost) CheckUpdates() ([]Update, error) {
 	updates, err := h.PackageManager.CheckOSUpdates(h.UnixHost)
 	if err != nil {

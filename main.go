@@ -95,6 +95,15 @@ func listUpgradablePackages(host steelcut.Host) error {
 	return nil
 }
 
+func upgradeAllPackages(host steelcut.Host) error {
+    _, err := host.UpgradeAllPackages()
+    if err != nil {
+        return fmt.Errorf("failed to upgrade packages: %v", err)
+    }
+    fmt.Println("Successfully upgraded all packages.")
+    return nil
+}
+
 func main() {
 	file, err := os.OpenFile(logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
@@ -194,6 +203,10 @@ func main() {
 	if listUpgradable {
 		processHosts(hostGroup.Hosts, listUpgradablePackages)
 	}
+
+	if upgradePackages {
+        processHosts(hostGroup.Hosts, upgradeAllPackages)
+    }
 
 }
 

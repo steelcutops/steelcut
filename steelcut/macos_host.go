@@ -38,6 +38,10 @@ func (h MacOSHost) UpgradePackage(pkg string) error {
 	return h.PackageManager.UpgradePackage(h.UnixHost, pkg)
 }
 
+func (h MacOSHost) UpgradeAllPackages() ([]Update, error) {
+    return h.PackageManager.UpgradeAll(h.UnixHost)
+}
+
 func (h MacOSHost) CheckUpdates() ([]Update, error) {
 	// Implement the update check for macOS hosts.
 	return []Update{}, nil

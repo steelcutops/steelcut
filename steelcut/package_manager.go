@@ -12,6 +12,7 @@ type PackageManager interface {
 	RemovePackage(*UnixHost, string) error
 	UpgradePackage(*UnixHost, string) error
 	CheckOSUpdates(host *UnixHost) ([]string, error)
+	UpgradeAll(*UnixHost) ([]Update, error)
 }
 
 type Update struct {
@@ -57,14 +58,15 @@ func (pm YumPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	return updates, nil
 }
 
-func (pm YumPackageManager) UpgradeOS(host *UnixHost) ([]Update, error) {
-	output, err := host.RunCommand("yum upgrade -y", true)
+func (pm YumPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
+	output, err := host.RunCommand("yum update -y", true)
 	if err != nil {
-		return nil, fmt.Errorf("failed to upgrade OS: %v", err)
+		return nil, fmt.Errorf("failed to upgrade all packages: %v", err)
 	}
 	updates := parseUpdates(output)
 	return updates, nil
 }
+
 
 type AptPackageManager struct{}
 
@@ -93,6 +95,16 @@ func (pm AptPackageManager) UpgradePackage(host *UnixHost, pkg string) error {
 	return err
 }
 
+func (pm AptPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
+	output, err := host.RunCommand("apt upgrade -y", true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upgrade all packages: %v", err)
+	}
+	updates := pm.parseAptUpdates(output)
+	return updates, nil
+}
+
+
 func (pm AptPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	log.Print("Checking for OS updates")
 	_, err := host.RunCommand("apt update", true)
@@ -110,15 +122,6 @@ func (pm AptPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	return updates, nil
 }
 
-
-func (pm AptPackageManager) UpgradeOS(host *UnixHost) ([]Update, error) {
-	output, err := host.RunCommand("apt upgrade -y", true)
-	if err != nil {
-		return nil, fmt.Errorf("failed to upgrade OS: %v", err)
-	}
-	updates := pm.parseAptUpdates(output)
-	return updates, nil
-}
 
 func (pm AptPackageManager) parseAptUpdates(output string) []Update {
 	lines := strings.Split(output, "\n")
@@ -181,14 +184,15 @@ func (pm BrewPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	return updates, nil
 }
 
-func (pm BrewPackageManager) UpgradeOS(host *UnixHost) ([]Update, error) {
-	output, err := host.RunCommand("brew upgrade")
+func (pm BrewPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
+	output, err := host.RunCommand("brew upgrade", true)
 	if err != nil {
-		return nil, fmt.Errorf("failed to upgrade OS: %v", err)
+		return nil, fmt.Errorf("failed to upgrade all packages: %v", err)
 	}
 	updates := pm.parseUpdates(output)
 	return updates, nil
 }
+
 
 func (pm BrewPackageManager) parseUpdates(output string) []Update {
 	lines := strings.Split(output, "\n")

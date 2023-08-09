@@ -34,6 +34,7 @@ type Host interface {
 	AddPackage(pkg string) error
 	RemovePackage(pkg string) error
 	UpgradePackage(pkg string) error
+	UpgradeAllPackages() ([]Update, error)
 	Reboot() error
 	Shutdown() error
 	SystemReporter
