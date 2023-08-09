@@ -36,19 +36,10 @@ func (km AgentSSHKeyManager) ReadPrivateKeys(_ string) ([]ssh.Signer, error) {
 	// Create a new SSH agent client
 	sshAgent := agent.NewClient(conn)
 
-	// Get the keys from the agent
-	keys, err := sshAgent.List()
+	// Get the signers from the agent
+	signers, err := sshAgent.Signers()
 	if err != nil {
-		return nil, fmt.Errorf("could not get keys from SSH agent: %v", err)
-	}
-
-	// Convert the keys into ssh.Signer objects
-	signers := make([]ssh.Signer, len(keys))
-	for i, key := range keys {
-		signers[i], err = ssh.NewSignerFromKey(key)
-		if err != nil {
-			return nil, fmt.Errorf("could not create signer from key: %v", err)
-		}
+		return nil, fmt.Errorf("could not get signers from SSH agent: %v", err)
 	}
 
 	return signers, nil

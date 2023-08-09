@@ -102,7 +102,6 @@ func (pm AptPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
 	return updates, nil
 }
 
-
 func (pm AptPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	log.Print("Checking for OS updates")
 	_, err := host.RunCommand("apt update", true)
