@@ -23,42 +23,30 @@ func (hg *HostGroup) AddHost(host Host) {
 	hg.Hosts[host.Hostname()] = host
 }
 
-func (hg *HostGroup) RunCommandOnAll(cmd string) ([]string, []error) {
-	var wg sync.WaitGroup
-	results := make(chan string, len(hg.Hosts))
-	errors := make(chan error, len(hg.Hosts))
+type CommandResult struct {
+	Result string
+	Error  error
+	Host   string
+}
 
-	hg.RLock() // Lock for reading
+func (hg *HostGroup) RunCommandOnAll(cmd string) []CommandResult {
+	var wg sync.WaitGroup
+	results := make([]CommandResult, len(hg.Hosts))
+
+	hg.RLock()
+	i := 0
 	for _, host := range hg.Hosts {
 		wg.Add(1)
-		go func(h Host) {
+		go func(h Host, index int) {
 			defer wg.Done()
 			result, err := h.RunCommand(cmd)
-			if err != nil {
-				errors <- err
-			} else {
-				results <- result
-			}
-		}(host)
+			results[index] = CommandResult{Result: result, Error: err, Host: h.Hostname()}
+		}(host, i)
+		i++
 	}
 	hg.RUnlock()
 
 	wg.Wait()
 
-	// Close the channels after all goroutines are done
-	close(results)
-	close(errors)
-
-	// Convert channels to slices
-	var res []string
-	for result := range results {
-		res = append(res, result)
-	}
-
-	var errs []error
-	for err := range errors {
-		errs = append(errs, err)
-	}
-
-	return res, errs
+	return results
 }

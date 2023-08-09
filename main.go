@@ -297,12 +297,13 @@ func main() {
 	}
 
 	if execCommand != "" {
-		results, errs := hostGroup.RunCommandOnAll(execCommand)
-		for i, result := range results {
-			fmt.Printf("Output of command on host %s:\n%s\n", hostnames[i], result)
-		}
-		for _, err := range errs {
-			logger.Error(err)
+		results := hostGroup.RunCommandOnAll(execCommand)
+		for _, result := range results {
+			if result.Error != nil {
+				logger.Error(result.Error)
+			} else {
+				fmt.Printf("Output of command on host %s:\n%s\n", result.Host, result.Result)
+			}
 		}
 	}
 
