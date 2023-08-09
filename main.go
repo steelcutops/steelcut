@@ -61,15 +61,6 @@ func (s *SSHClientImpl) Dial(network, addr string, config *ssh.ClientConfig) (*s
 	return ssh.Dial(network, addr, config)
 }
 
-func executeCommand(host steelcut.Host, command string) error {
-	output, err := host.RunCommand(command)
-	if err != nil {
-		return fmt.Errorf("failed to execute command: %v", err)
-	}
-	fmt.Printf("Output of command '%s':\n%s\n", command, output)
-	return nil
-}
-
 func processHosts(hosts []steelcut.Host, action func(host steelcut.Host) error) error {
 	for _, host := range hosts {
 		if err := action(host); err != nil {
