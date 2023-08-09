@@ -169,6 +169,24 @@ func upgradeAllPackages(host steelcut.Host) error {
 	return nil
 }
 
+func addHosts(hostnames []string, hostGroup *steelcut.HostGroup, options ...steelcut.HostOption) {
+	for _, host := range hostnames {
+		log.Printf("Adding host %s", host)
+		server, err := steelcut.NewHost(host, options...)
+		if err != nil {
+			log.Printf("Failed to create new host: %v", err)
+			continue
+		}
+
+		if err := server.IsReachable(); err != nil {
+			log.Printf("Host %s is not reachable, skipping: %v", host, err)
+			continue
+		}
+
+		hostGroup.AddHost(server)
+	}
+}
+
 func main() {
 	file, err := os.OpenFile(logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
@@ -254,29 +272,13 @@ func main() {
 			log.Fatalf("Failed to read INI file: %v", err)
 		}
 
-		// Iterate over the hostsMap and add them to the host group
 		for group, hosts := range hostsMap {
 			log.Printf("Adding hosts from group %s", group)
-			for _, host := range hosts {
-				server, err := steelcut.NewHost(host, options...)
-				if err != nil {
-					log.Printf("Failed to create new host: %v", err)
-					continue
-				}
-				hostGroup.AddHost(server)
-			}
+			addHosts(hosts, hostGroup, options...)
 		}
 	}
 
-	// Iterate over the hostnames and add them to the host group
-	for _, host := range hostnames {
-		log.Printf("Adding host %s", host)
-		server, err := steelcut.NewHost(host, options...)
-		if err != nil {
-			log.Fatalf("Failed to create new host: %v", err)
-		}
-		hostGroup.AddHost(server)
-	}
+	addHosts(hostnames, hostGroup, options...)
 
 	if infoDump {
 		processHosts(hostGroup, dumpHostInfo)

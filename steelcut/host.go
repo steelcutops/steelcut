@@ -39,6 +39,7 @@ type Host interface {
 	Hostname() string
 	Reboot() error
 	Shutdown() error
+	IsReachable() error
 	SystemReporter
 }
 
@@ -87,6 +88,38 @@ func determineOS(host *UnixHost) (string, error) {
 	}
 
 	return strings.TrimSpace(output), nil
+}
+
+func (h UnixHost) IsReachable() error {
+	if err := h.ping(); err != nil {
+		return err
+	}
+	return h.sshable()
+}
+
+func (h UnixHost) ping() error {
+	cmd := "ping -c 1 " + h.Hostname()
+	_, err := exec.Command("bash", "-c", cmd).Output()
+	if err != nil {
+		return fmt.Errorf("ping test failed: %v", err)
+	}
+	log.Printf("Ping test passed for host '%s'\n", h.Hostname())
+	return nil
+}
+
+func (h UnixHost) sshable() error {
+	config, err := h.getSSHConfig()
+	if err != nil {
+		return err
+	}
+
+	client, err := h.SSHClient.Dial("tcp", h.Hostname()+":22", config)
+	if err != nil {
+		return fmt.Errorf("SSH test failed: %v", err)
+	}
+	client.Close()
+	log.Printf("SSH test passed for host '%s'\n", h.Hostname())
+	return nil
 }
 
 func NewHost(hostname string, options ...HostOption) (Host, error) {
