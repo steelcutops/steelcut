@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"golang.org/x/crypto/ssh"
 
@@ -32,6 +33,17 @@ var (
 	upgradePackages bool
 	execCommand     string
 )
+
+type hostnamesValue []string
+
+func (h *hostnamesValue) String() string {
+	return strings.Join(*h, ",")
+}
+
+func (h *hostnamesValue) Set(value string) error {
+	*h = append(*h, value)
+	return nil
+}
 
 func init() {
 	flag.StringVar(&logFileName, "log", "log.txt", "Log file name")
@@ -129,7 +141,9 @@ func main() {
 		logger.SetLevel(logrus.InfoLevel)
 	}
 
-	hostname := flag.String("hostname", "", "Hostname to connect to")
+	var hostnames hostnamesValue
+	flag.Var(&hostnames, "hostname", "Hostname to connect to")
+
 	username := flag.String("username", "", "Username to use for SSH connection")
 	passwordPrompt := flag.Bool("password", false, "Use a password for SSH connection")
 	keyPassPrompt := flag.Bool("keypass", false, "Passphrase for decrypting SSH keys")
@@ -168,8 +182,8 @@ func main() {
 		options = append(options, steelcut.WithKeyPassphrase(keyPass))
 	}
 
-	if *hostname == "" {
-		*hostname = "localhost"
+	if len(hostnames) == 0 {
+		hostnames = append(hostnames, "localhost")
 	}
 
 	var sudoPassword string
@@ -188,13 +202,20 @@ func main() {
 	}
 
 	hostGroup := steelcut.NewHostGroup()
-
-	hosts := []string{*hostname}
+	// Iterate over the hostnames and add them to the host group
+	for _, host := range hostnames {
+		server, err := steelcut.NewHost(host, options...)
+		if err != nil {
+			log.Fatalf("Failed to create new host: %v", err)
+		}
+		hostGroup.AddHost(server)
+	}
 
 	client := &SSHClientImpl{}
 	options = append(options, steelcut.WithSSHClient(client))
 
-	for _, host := range hosts {
+	// Iterate over the hostnames and add them to the host group
+	for _, host := range hostnames {
 		server, err := steelcut.NewHost(host, options...)
 		if err != nil {
 			log.Fatalf("Failed to create new host: %v", err)
@@ -219,9 +240,13 @@ func main() {
 	}
 
 	if execCommand != "" {
-		processHosts(hostGroup.Hosts, func(host steelcut.Host) error {
-			return executeCommand(host, execCommand)
-		})
+		results, errs := hostGroup.RunCommandOnAll(execCommand)
+		for i, result := range results {
+			fmt.Printf("Output of command on host %s:\n%s\n", hostnames[i], result)
+		}
+		for _, err := range errs {
+			logger.Error(err)
+		}
 	}
 
 }
