@@ -6,17 +6,21 @@ import (
 
 type HostGroup struct {
 	sync.RWMutex // Embedding a RWMutex to provide locking
-	Hosts        []Host
+	Hosts        map[string]Host
 }
 
 func NewHostGroup(hosts ...Host) *HostGroup {
-	return &HostGroup{Hosts: hosts}
+	hostMap := make(map[string]Host)
+	for _, host := range hosts {
+		hostMap[host.Hostname()] = host
+	}
+	return &HostGroup{Hosts: hostMap}
 }
 
 func (hg *HostGroup) AddHost(host Host) {
 	hg.Lock()
 	defer hg.Unlock()
-	hg.Hosts = append(hg.Hosts, host)
+	hg.Hosts[host.Hostname()] = host
 }
 
 func (hg *HostGroup) RunCommandOnAll(cmd string) ([]string, []error) {
