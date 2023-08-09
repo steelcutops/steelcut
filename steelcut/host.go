@@ -78,7 +78,6 @@ func WithSudoPassword(password string) HostOption {
 	}
 }
 
-
 func determineOS(host *UnixHost) (string, error) {
 	output, err := host.RunCommand("uname")
 	if err != nil {

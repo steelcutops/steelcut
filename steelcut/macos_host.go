@@ -39,7 +39,7 @@ func (h MacOSHost) UpgradePackage(pkg string) error {
 }
 
 func (h MacOSHost) UpgradeAllPackages() ([]Update, error) {
-    return h.PackageManager.UpgradeAll(h.UnixHost)
+	return h.PackageManager.UpgradeAll(h.UnixHost)
 }
 
 func (h MacOSHost) CheckUpdates() ([]Update, error) {
