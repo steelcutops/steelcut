@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 
 	"golang.org/x/crypto/ssh"
 
@@ -61,11 +62,32 @@ func (s *SSHClientImpl) Dial(network, addr string, config *ssh.ClientConfig) (*s
 	return ssh.Dial(network, addr, config)
 }
 
-func processHosts(hosts []steelcut.Host, action func(host steelcut.Host) error) error {
-	for _, host := range hosts {
-		if err := action(host); err != nil {
-			logger.Error(err)
-		}
+func processHosts(hg *steelcut.HostGroup, action func(host steelcut.Host) error) error {
+	var wg sync.WaitGroup
+	errCh := make(chan error, len(hg.Hosts))
+
+	hg.RLock() // Lock for reading
+	for _, host := range hg.Hosts {
+		wg.Add(1)
+		go func(h steelcut.Host) {
+			defer wg.Done()
+			if err := action(h); err != nil {
+				errCh <- err
+			}
+		}(host)
+	}
+	hg.RUnlock()
+
+	wg.Wait()
+	close(errCh)
+
+	var errors []error
+	for err := range errCh {
+		errors = append(errors, err)
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("encountered %d error(s): %v", len(errors), errors)
 	}
 	return nil
 }
@@ -208,19 +230,19 @@ func main() {
 	}
 
 	if infoDump {
-		processHosts(hostGroup.Hosts, dumpHostInfo)
+		processHosts(hostGroup, dumpHostInfo)
 	}
 
 	if listPackages {
-		processHosts(hostGroup.Hosts, listAllPackages)
+		processHosts(hostGroup, listAllPackages)
 	}
 
 	if listUpgradable {
-		processHosts(hostGroup.Hosts, listUpgradablePackages)
+		processHosts(hostGroup, listUpgradablePackages)
 	}
 
 	if upgradePackages {
-		processHosts(hostGroup.Hosts, upgradeAllPackages)
+		processHosts(hostGroup, upgradeAllPackages)
 	}
 
 	if execCommand != "" {
