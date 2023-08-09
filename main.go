@@ -202,20 +202,13 @@ func main() {
 	}
 
 	hostGroup := steelcut.NewHostGroup()
-	// Iterate over the hostnames and add them to the host group
-	for _, host := range hostnames {
-		server, err := steelcut.NewHost(host, options...)
-		if err != nil {
-			log.Fatalf("Failed to create new host: %v", err)
-		}
-		hostGroup.AddHost(server)
-	}
 
 	client := &SSHClientImpl{}
 	options = append(options, steelcut.WithSSHClient(client))
 
 	// Iterate over the hostnames and add them to the host group
 	for _, host := range hostnames {
+		log.Printf("Adding host %s", host)
 		server, err := steelcut.NewHost(host, options...)
 		if err != nil {
 			log.Fatalf("Failed to create new host: %v", err)

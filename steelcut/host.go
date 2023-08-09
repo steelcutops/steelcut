@@ -1,6 +1,7 @@
 package steelcut
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os/exec"
@@ -204,6 +205,9 @@ func (h UnixHost) runLocalCommand(cmd string, useSudo bool, sudoPassword string)
 }
 
 func (h UnixHost) runRemoteCommand(cmd string, useSudo bool, sudoPassword string) (string, error) {
+	if h.SSHClient == nil {
+		return "", errors.New("SSHClient is not initialized")
+	}
 	config, err := h.getSSHConfig()
 	if err != nil {
 		return "", err
