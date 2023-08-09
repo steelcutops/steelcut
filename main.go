@@ -3,11 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"gopkg.in/ini.v1"
 	"log"
 	"os"
 	"strings"
 	"sync"
+
+	"gopkg.in/ini.v1"
 
 	"golang.org/x/crypto/ssh"
 
@@ -58,7 +59,9 @@ func readHostsFromFile(filePath string) (map[string][]string, error) {
 
 	for _, section := range cfg.Sections() {
 		name := section.Name()
-		hosts[name] = section.KeyStrings()
+		for _, key := range section.Keys() {
+			hosts[name] = append(hosts[name], key.String())
+		}
 	}
 
 	return hosts, nil
@@ -107,8 +110,11 @@ func processHosts(hg *steelcut.HostGroup, action func(host steelcut.Host) error)
 	}
 
 	if len(errors) > 0 {
-		return fmt.Errorf("encountered %d error(s): %v", len(errors), errors)
+		for _, err := range errors {
+			log.Printf("Host processing error: %v", err)
+		}
 	}
+
 	return nil
 }
 
@@ -251,7 +257,8 @@ func main() {
 			for _, host := range hosts {
 				server, err := steelcut.NewHost(host, options...)
 				if err != nil {
-					log.Fatalf("Failed to create new host: %v", err)
+					log.Printf("Failed to create new host: %v", err)
+					continue
 				}
 				hostGroup.AddHost(server)
 			}
