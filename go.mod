@@ -10,4 +10,5 @@ require (
 require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	golang.org/x/sys v0.10.0 // indirect
+	gopkg.in/ini.v1 v1.67.0 // indirect
 )

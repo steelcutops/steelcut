@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"gopkg.in/ini.v1"
 	"log"
 	"os"
 	"strings"
@@ -33,6 +34,7 @@ var (
 	listUpgradable  bool
 	upgradePackages bool
 	execCommand     string
+	iniFilePath     string
 )
 
 type hostnamesValue []string
@@ -46,6 +48,22 @@ func (h *hostnamesValue) Set(value string) error {
 	return nil
 }
 
+func readHostsFromFile(filePath string) (map[string][]string, error) {
+	cfg, err := ini.Load(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	hosts := make(map[string][]string)
+
+	for _, section := range cfg.Sections() {
+		name := section.Name()
+		hosts[name] = section.KeyStrings()
+	}
+
+	return hosts, nil
+}
+
 func init() {
 	flag.StringVar(&logFileName, "log", "log.txt", "Log file name")
 	flag.BoolVar(&debug, "debug", false, "Enable debug log level")
@@ -54,6 +72,8 @@ func init() {
 	flag.BoolVar(&listUpgradable, "upgradable", false, "List all upgradable packages")
 	flag.BoolVar(&upgradePackages, "upgrade", false, "Upgrade all packages")
 	flag.StringVar(&execCommand, "exec", "", "Execute command on the host")
+	flag.StringVar(&iniFilePath, "ini", "", "Path to INI file with host configurations")
+
 }
 
 type SSHClientImpl struct{}
@@ -218,6 +238,25 @@ func main() {
 
 	client := &SSHClientImpl{}
 	options = append(options, steelcut.WithSSHClient(client))
+
+	if iniFilePath != "" {
+		hostsMap, err := readHostsFromFile(iniFilePath)
+		if err != nil {
+			log.Fatalf("Failed to read INI file: %v", err)
+		}
+
+		// Iterate over the hostsMap and add them to the host group
+		for group, hosts := range hostsMap {
+			log.Printf("Adding hosts from group %s", group)
+			for _, host := range hosts {
+				server, err := steelcut.NewHost(host, options...)
+				if err != nil {
+					log.Fatalf("Failed to create new host: %v", err)
+				}
+				hostGroup.AddHost(server)
+			}
+		}
+	}
 
 	// Iterate over the hostnames and add them to the host group
 	for _, host := range hostnames {
