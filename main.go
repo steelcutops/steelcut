@@ -27,16 +27,24 @@ type HostInfo struct {
 }
 
 var (
-	logFileName     string
-	debug           bool
-	logger          = logrus.New()
-	infoDump        bool
-	listPackages    bool
-	listUpgradable  bool
-	upgradePackages bool
-	execCommand     string
-	iniFilePath     string
+	logger = logrus.New()
 )
+
+type flags struct {
+	LogFileName        string
+	Debug              bool
+	InfoDump           bool
+	ListPackages       bool
+	ListUpgradable     bool
+	UpgradePackages    bool
+	ExecCommand        string
+	IniFilePath        string
+	Hostnames          hostnamesValue
+	Username           string
+	PasswordPrompt     bool
+	KeyPassPrompt      bool
+	SudoPasswordPrompt bool
+}
 
 type hostnamesValue []string
 
@@ -67,16 +75,25 @@ func readHostsFromFile(filePath string) (map[string][]string, error) {
 	return hosts, nil
 }
 
-func init() {
-	flag.StringVar(&logFileName, "log", "log.txt", "Log file name")
-	flag.BoolVar(&debug, "debug", false, "Enable debug log level")
-	flag.BoolVar(&infoDump, "info", false, "Dump information about the hosts")
-	flag.BoolVar(&listPackages, "list", false, "List all packages")
-	flag.BoolVar(&listUpgradable, "upgradable", false, "List all upgradable packages")
-	flag.BoolVar(&upgradePackages, "upgrade", false, "Upgrade all packages")
-	flag.StringVar(&execCommand, "exec", "", "Execute command on the host")
-	flag.StringVar(&iniFilePath, "ini", "", "Path to INI file with host configurations")
+func parseFlags() *flags {
+	f := &flags{}
+	flag.StringVar(&f.LogFileName, "log", "log.txt", "Log file name")
+	flag.BoolVar(&f.Debug, "debug", false, "Enable debug log level")
+	flag.BoolVar(&f.InfoDump, "info", false, "Dump information about the hosts")
+	flag.BoolVar(&f.ListPackages, "list", false, "List all packages")
+	flag.BoolVar(&f.ListUpgradable, "upgradable", false, "List all upgradable packages")
+	flag.BoolVar(&f.UpgradePackages, "upgrade", false, "Upgrade all packages")
+	flag.StringVar(&f.ExecCommand, "exec", "", "Execute command on the host")
+	flag.StringVar(&f.IniFilePath, "ini", "", "Path to INI file with host configurations")
+	flag.StringVar(&f.Username, "username", "", "Username to use for SSH connection")
+	flag.BoolVar(&f.PasswordPrompt, "password", false, "Use a password for SSH connection")
+	flag.BoolVar(&f.KeyPassPrompt, "keypass", false, "Passphrase for decrypting SSH keys")
+	flag.BoolVar(&f.SudoPasswordPrompt, "sudo-password", false, "Prompt for sudo password")
+	flag.Var(&f.Hostnames, "hostname", "Hostname to connect to")
 
+	flag.Parse()
+
+	return f
 }
 
 type SSHClientImpl struct{}
@@ -188,31 +205,23 @@ func addHosts(hostnames []string, hostGroup *steelcut.HostGroup, options ...stee
 }
 
 func main() {
-	file, err := os.OpenFile(logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	f := parseFlags()
+
+	file, err := os.OpenFile(f.LogFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		logrus.Fatal(err)
 	}
 	defer file.Close()
 
 	logger.SetOutput(file)
-	if debug {
+	if f.Debug {
 		logger.SetLevel(logrus.DebugLevel)
 	} else {
 		logger.SetLevel(logrus.InfoLevel)
 	}
 
-	var hostnames hostnamesValue
-	flag.Var(&hostnames, "hostname", "Hostname to connect to")
-
-	username := flag.String("username", "", "Username to use for SSH connection")
-	passwordPrompt := flag.Bool("password", false, "Use a password for SSH connection")
-	keyPassPrompt := flag.Bool("keypass", false, "Passphrase for decrypting SSH keys")
-	sudoPasswordPrompt := flag.Bool("sudo-password", false, "Prompt for sudo password")
-
-	flag.Parse()
-
 	var password, keyPass string
-	if *passwordPrompt {
+	if f.PasswordPrompt {
 		fmt.Print("Enter the password: ")
 		passwordBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
@@ -221,7 +230,8 @@ func main() {
 		password = string(passwordBytes)
 		fmt.Println()
 	}
-	if *keyPassPrompt {
+
+	if f.KeyPassPrompt {
 		fmt.Print("Enter the key passphrase: ")
 		keyPassBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
@@ -232,8 +242,8 @@ func main() {
 	}
 
 	var options []steelcut.HostOption
-	if *username != "" {
-		options = append(options, steelcut.WithUser(*username))
+	if f.Username != "" {
+		options = append(options, steelcut.WithUser(f.Username))
 	}
 	if password != "" {
 		options = append(options, steelcut.WithPassword(password))
@@ -242,12 +252,12 @@ func main() {
 		options = append(options, steelcut.WithKeyPassphrase(keyPass))
 	}
 
-	if len(hostnames) == 0 {
-		hostnames = append(hostnames, "localhost")
+	if len(f.Hostnames) == 0 {
+		f.Hostnames = append(f.Hostnames, "localhost")
 	}
 
 	var sudoPassword string
-	if *sudoPasswordPrompt {
+	if f.SudoPasswordPrompt {
 		fmt.Print("Enter the sudo password: ")
 		sudoPasswordBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
@@ -266,8 +276,8 @@ func main() {
 	client := &SSHClientImpl{}
 	options = append(options, steelcut.WithSSHClient(client))
 
-	if iniFilePath != "" {
-		hostsMap, err := readHostsFromFile(iniFilePath)
+	if f.IniFilePath != "" {
+		hostsMap, err := readHostsFromFile(f.IniFilePath)
 		if err != nil {
 			log.Fatalf("Failed to read INI file: %v", err)
 		}
@@ -278,26 +288,26 @@ func main() {
 		}
 	}
 
-	addHosts(hostnames, hostGroup, options...)
+	addHosts(f.Hostnames, hostGroup, options...)
 
-	if infoDump {
+	if f.InfoDump {
 		processHosts(hostGroup, dumpHostInfo)
 	}
 
-	if listPackages {
+	if f.ListPackages {
 		processHosts(hostGroup, listAllPackages)
 	}
 
-	if listUpgradable {
+	if f.ListUpgradable {
 		processHosts(hostGroup, listUpgradablePackages)
 	}
 
-	if upgradePackages {
+	if f.UpgradePackages {
 		processHosts(hostGroup, upgradeAllPackages)
 	}
 
-	if execCommand != "" {
-		results := hostGroup.RunCommandOnAll(execCommand)
+	if f.ExecCommand != "" {
+		results := hostGroup.RunCommandOnAll(f.ExecCommand)
 		for _, result := range results {
 			if result.Error != nil {
 				logger.Error(result.Error)
