@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"gopkg.in/ini.v1"
 
@@ -28,8 +29,10 @@ type HostInfo struct {
 }
 
 type flags struct {
+	CPUThreshold       float64
 	Concurrency        int
 	Debug              bool
+	DiskThreshold      float64
 	ExecCommand        string
 	Hostnames          hostnamesValue
 	InfoDump           bool
@@ -38,6 +41,8 @@ type flags struct {
 	ListPackages       bool
 	ListUpgradable     bool
 	LogFileName        string
+	MemoryThreshold    float64
+	Monitor            bool
 	PasswordPrompt     bool
 	ScriptPath         string
 	SudoPasswordPrompt bool
@@ -85,9 +90,13 @@ func parseFlags() *flags {
 	flag.BoolVar(&f.KeyPassPrompt, "keypass", false, "Passphrase for decrypting SSH keys")
 	flag.BoolVar(&f.ListPackages, "list", false, "List all packages")
 	flag.BoolVar(&f.ListUpgradable, "upgradable", false, "List all upgradable packages")
+	flag.BoolVar(&f.Monitor, "monitor", false, "Enable host monitoring")
 	flag.BoolVar(&f.PasswordPrompt, "password", false, "Use a password for SSH connection")
 	flag.BoolVar(&f.SudoPasswordPrompt, "sudo-password", false, "Prompt for sudo password")
 	flag.BoolVar(&f.UpgradePackages, "upgrade", false, "Upgrade all packages")
+	flag.Float64Var(&f.CPUThreshold, "cpu-threshold", 80.0, "Threshold for CPU usage in percent")
+	flag.Float64Var(&f.DiskThreshold, "disk-threshold", 80.0, "Threshold for disk usage in percent")
+	flag.Float64Var(&f.MemoryThreshold, "memory-threshold", 80.0, "Threshold for memory usage in percent")
 	flag.IntVar(&f.Concurrency, "concurrency", 10, "Maximum number of concurrent host connections")
 	flag.StringVar(&f.ExecCommand, "exec", "", "Execute command on the host")
 	flag.StringVar(&f.IniFilePath, "ini", "", "Path to INI file with host configurations")
@@ -99,6 +108,34 @@ func parseFlags() *flags {
 	flag.Parse()
 
 	return f
+}
+
+func monitorHosts(hg *steelcut.HostGroup, f *flags) {
+	for {
+		hg.RLock()
+		for _, host := range hg.Hosts {
+			hostInfo, err := getHostInfo(host)
+			if err != nil {
+				logger.Error(err)
+				continue
+			}
+
+			if hostInfo.CPUUsage > f.CPUThreshold {
+				logger.Warnf("CPU usage on host %s exceeded threshold: %.2f%%", host.Hostname(), hostInfo.CPUUsage)
+			}
+
+			if hostInfo.MemoryUsage > f.MemoryThreshold {
+				logger.Warnf("Memory usage on host %s exceeded threshold: %.2f%%", host.Hostname(), hostInfo.MemoryUsage)
+			}
+
+			if hostInfo.DiskUsage > f.DiskThreshold {
+				logger.Warnf("Disk usage on host %s exceeded threshold: %.2f%%", host.Hostname(), hostInfo.DiskUsage)
+			}
+		}
+		hg.RUnlock()
+
+		time.Sleep(5 * time.Second) // Delay between monitoring checks
+	}
 }
 
 func readScriptFile(path string) (string, error) {
@@ -347,6 +384,12 @@ func main() {
 
 	if f.InfoDump {
 		processHosts(hostGroup, dumpHostInfo, f.Concurrency)
+	}
+
+	if f.Monitor {
+		go monitorHosts(hostGroup, f)
+		stopChan := make(chan struct{})
+		<-stopChan
 	}
 
 	if f.ListPackages {
