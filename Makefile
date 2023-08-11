@@ -8,6 +8,11 @@ test:
 	@go test ./...
 	@echo "Tests complete!"
 
+cover:
+	@echo "Measuring test coverage..."
+	@go test -cover ./...
+	@echo "Coverage complete!"
+
 run:
 	@echo "Running the project..."
 	@go run main.go
