@@ -44,6 +44,7 @@ type flags struct {
 	PasswordPrompt     bool
 	KeyPassPrompt      bool
 	SudoPasswordPrompt bool
+	Concurrency        int
 }
 
 type hostnamesValue []string
@@ -90,6 +91,7 @@ func parseFlags() *flags {
 	flag.BoolVar(&f.KeyPassPrompt, "keypass", false, "Passphrase for decrypting SSH keys")
 	flag.BoolVar(&f.SudoPasswordPrompt, "sudo-password", false, "Prompt for sudo password")
 	flag.Var(&f.Hostnames, "hostname", "Hostname to connect to")
+	flag.IntVar(&f.Concurrency, "concurrency", 10, "Maximum number of concurrent host connections")
 
 	flag.Parse()
 
@@ -102,14 +104,17 @@ func (s *SSHClientImpl) Dial(network, addr string, config *ssh.ClientConfig) (*s
 	return ssh.Dial(network, addr, config)
 }
 
-func processHosts(hg *steelcut.HostGroup, action func(host steelcut.Host) error) error {
+func processHosts(hg *steelcut.HostGroup, action func(host steelcut.Host) error, maxConcurrency int) error {
 	var wg sync.WaitGroup
 	errCh := make(chan error, len(hg.Hosts))
+	sem := make(chan struct{}, maxConcurrency) // Create semaphore with buffer size equal to max concurrency
 
-	hg.RLock() // Lock for reading
+	hg.RLock()
 	for _, host := range hg.Hosts {
 		wg.Add(1)
 		go func(h steelcut.Host) {
+			sem <- struct{}{}        // Acquire token
+			defer func() { <-sem }() // Release token
 			defer wg.Done()
 			if err := action(h); err != nil {
 				errCh <- err
@@ -120,6 +125,7 @@ func processHosts(hg *steelcut.HostGroup, action func(host steelcut.Host) error)
 
 	wg.Wait()
 	close(errCh)
+	close(sem) // Close the semaphore channel when done
 
 	var errors []error
 	for err := range errCh {
@@ -291,19 +297,19 @@ func main() {
 	addHosts(f.Hostnames, hostGroup, options...)
 
 	if f.InfoDump {
-		processHosts(hostGroup, dumpHostInfo)
+		processHosts(hostGroup, dumpHostInfo, f.Concurrency)
 	}
 
 	if f.ListPackages {
-		processHosts(hostGroup, listAllPackages)
+		processHosts(hostGroup, listAllPackages, f.Concurrency)
 	}
 
 	if f.ListUpgradable {
-		processHosts(hostGroup, listUpgradablePackages)
+		processHosts(hostGroup, listUpgradablePackages, f.Concurrency)
 	}
 
 	if f.UpgradePackages {
-		processHosts(hostGroup, upgradeAllPackages)
+		processHosts(hostGroup, upgradeAllPackages, f.Concurrency)
 	}
 
 	if f.ExecCommand != "" {
