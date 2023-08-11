@@ -21,8 +21,8 @@ import (
 
 type HostInfo struct {
 	CPUUsage         float64  `json:"cpuUsage"`
-	MemoryUsage      float64  `json:"memoryUsage"`
 	DiskUsage        float64  `json:"diskUsage"`
+	MemoryUsage      float64  `json:"memoryUsage"`
 	RunningProcesses []string `json:"runningProcesses"`
 }
 
@@ -31,20 +31,20 @@ var (
 )
 
 type flags struct {
-	LogFileName        string
+	Concurrency        int
 	Debug              bool
+	ExecCommand        string
+	Hostnames          hostnamesValue
 	InfoDump           bool
+	IniFilePath        string
+	KeyPassPrompt      bool
 	ListPackages       bool
 	ListUpgradable     bool
-	UpgradePackages    bool
-	ExecCommand        string
-	IniFilePath        string
-	Hostnames          hostnamesValue
-	Username           string
+	LogFileName        string
 	PasswordPrompt     bool
-	KeyPassPrompt      bool
 	SudoPasswordPrompt bool
-	Concurrency        int
+	UpgradePackages    bool
+	Username           string
 }
 
 type hostnamesValue []string
@@ -78,20 +78,20 @@ func readHostsFromFile(filePath string) (map[string][]string, error) {
 
 func parseFlags() *flags {
 	f := &flags{}
-	flag.StringVar(&f.LogFileName, "log", "log.txt", "Log file name")
 	flag.BoolVar(&f.Debug, "debug", false, "Enable debug log level")
 	flag.BoolVar(&f.InfoDump, "info", false, "Dump information about the hosts")
+	flag.BoolVar(&f.KeyPassPrompt, "keypass", false, "Passphrase for decrypting SSH keys")
 	flag.BoolVar(&f.ListPackages, "list", false, "List all packages")
 	flag.BoolVar(&f.ListUpgradable, "upgradable", false, "List all upgradable packages")
+	flag.BoolVar(&f.PasswordPrompt, "password", false, "Use a password for SSH connection")
+	flag.BoolVar(&f.SudoPasswordPrompt, "sudo-password", false, "Prompt for sudo password")
 	flag.BoolVar(&f.UpgradePackages, "upgrade", false, "Upgrade all packages")
+	flag.IntVar(&f.Concurrency, "concurrency", 10, "Maximum number of concurrent host connections")
 	flag.StringVar(&f.ExecCommand, "exec", "", "Execute command on the host")
 	flag.StringVar(&f.IniFilePath, "ini", "", "Path to INI file with host configurations")
+	flag.StringVar(&f.LogFileName, "log", "log.txt", "Log file name")
 	flag.StringVar(&f.Username, "username", "", "Username to use for SSH connection")
-	flag.BoolVar(&f.PasswordPrompt, "password", false, "Use a password for SSH connection")
-	flag.BoolVar(&f.KeyPassPrompt, "keypass", false, "Passphrase for decrypting SSH keys")
-	flag.BoolVar(&f.SudoPasswordPrompt, "sudo-password", false, "Prompt for sudo password")
 	flag.Var(&f.Hostnames, "hostname", "Hostname to connect to")
-	flag.IntVar(&f.Concurrency, "concurrency", 10, "Maximum number of concurrent host connections")
 
 	flag.Parse()
 
@@ -348,8 +348,8 @@ func getHostInfo(host steelcut.Host) (HostInfo, error) {
 
 	return HostInfo{
 		CPUUsage:         cpuUsage,
-		MemoryUsage:      memoryUsage,
 		DiskUsage:        diskUsage,
+		MemoryUsage:      memoryUsage,
 		RunningProcesses: runningProcesses,
 	}, nil
 }

@@ -23,24 +23,24 @@ func (c RealSSHClient) Dial(network, addr string, config *ssh.ClientConfig) (*ss
 
 type SystemReporter interface {
 	CPUUsage() (float64, error)
-	MemoryUsage() (float64, error)
 	DiskUsage() (float64, error)
+	MemoryUsage() (float64, error)
 	RunningProcesses() ([]string, error)
 }
 
 type Host interface {
-	CheckUpdates() ([]Update, error)
-	RunCommand(cmd string) (string, error)
-	ListPackages() ([]string, error)
 	AddPackage(pkg string) error
-	RemovePackage(pkg string) error
-	UpgradePackage(pkg string) error
-	UpgradeAllPackages() ([]Update, error)
+	CheckUpdates() ([]Update, error)
 	Hostname() string
-	Reboot() error
-	Shutdown() error
 	IsReachable() error
+	ListPackages() ([]string, error)
+	Reboot() error
+	RemovePackage(pkg string) error
+	RunCommand(cmd string) (string, error)
+	Shutdown() error
 	SystemReporter
+	UpgradeAllPackages() ([]Update, error)
+	UpgradePackage(pkg string) error
 }
 
 type HostOption func(*UnixHost)
