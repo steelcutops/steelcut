@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -42,6 +43,7 @@ type flags struct {
 	ListUpgradable     bool
 	LogFileName        string
 	PasswordPrompt     bool
+	ScriptPath         string
 	SudoPasswordPrompt bool
 	UpgradePackages    bool
 	Username           string
@@ -90,6 +92,7 @@ func parseFlags() *flags {
 	flag.StringVar(&f.ExecCommand, "exec", "", "Execute command on the host")
 	flag.StringVar(&f.IniFilePath, "ini", "", "Path to INI file with host configurations")
 	flag.StringVar(&f.LogFileName, "log", "log.txt", "Log file name")
+	flag.StringVar(&f.ScriptPath, "script", "", "Path to script file to be executed on the host")
 	flag.StringVar(&f.Username, "username", "", "Username to use for SSH connection")
 	flag.Var(&f.Hostnames, "hostname", "Hostname to connect to")
 
@@ -102,6 +105,23 @@ type SSHClientImpl struct{}
 
 func (s *SSHClientImpl) Dial(network, addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
 	return ssh.Dial(network, addr, config)
+}
+
+func readScriptFile(path string) (string, error) {
+	bytes, err := ioutil.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return string(bytes), nil
+}
+
+func executeScript(host steelcut.Host, script string) error {
+	result, err := host.RunCommand(script)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Output of script on host %s:\n%s\n", host.Hostname(), result)
+	return nil
 }
 
 func processHosts(hg *steelcut.HostGroup, action func(host steelcut.Host) error, maxConcurrency int) error {
@@ -321,6 +341,16 @@ func main() {
 				fmt.Printf("Output of command on host %s:\n%s\n", result.Host, result.Result)
 			}
 		}
+	}
+
+	if f.ScriptPath != "" {
+		script, err := readScriptFile(f.ScriptPath)
+		if err != nil {
+			log.Fatalf("Failed to read script file: %v", err)
+		}
+		processHosts(hostGroup, func(host steelcut.Host) error {
+			return executeScript(host, script)
+		}, f.Concurrency)
 	}
 
 }
