@@ -3,9 +3,12 @@ package steelcut
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/crypto/ssh"
@@ -197,6 +200,64 @@ func (h UnixHost) RunCommand(cmd string, options ...interface{}) (string, error)
 	}
 
 	return h.runCommandInternal(cmd, useSudo, sudoPassword)
+}
+
+func (h UnixHost) CopyFile(localPath string, remotePath string) error {
+	// Check if the operation is local
+	if h.isLocal() {
+		return errors.New("source and destination are the same host")
+	}
+
+	// Open local file
+	localFile, err := os.Open(localPath)
+	if err != nil {
+		return err
+	}
+	defer localFile.Close()
+
+	// Get file stats
+	fileInfo, err := localFile.Stat()
+	if err != nil {
+		return err
+	}
+
+	// Get SSH client config
+	config, err := h.getSSHConfig()
+	if err != nil {
+		return err
+	}
+
+	// Dial SSH connection
+	client, err := h.SSHClient.Dial("tcp", h.Hostname()+":22", config)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	// Start a new session
+	session, err := client.NewSession()
+	if err != nil {
+		return err
+	}
+	defer session.Close()
+
+	// Start SCP in the remote machine
+	go func() {
+		w, _ := session.StdinPipe()
+		defer w.Close()
+		fmt.Fprintln(w, "C0644", fileInfo.Size(), filepath.Base(remotePath))
+		io.Copy(w, localFile)
+		fmt.Fprint(w, "\x00")
+	}()
+
+	// Run SCP on the remote machine to copy the file
+	cmd := "scp -t " + remotePath
+	if err := session.Run(cmd); err != nil {
+		return err
+	}
+
+	log.Printf("File copied successfully from '%s' to '%s'\n", localPath, remotePath)
+	return nil
 }
 
 func (h UnixHost) runCommandInternal(cmd string, useSudo bool, sudoPassword string) (string, error) {
