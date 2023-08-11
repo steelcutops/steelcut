@@ -27,10 +27,6 @@ type HostInfo struct {
 	RunningProcesses []string `json:"runningProcesses"`
 }
 
-var (
-	logger = logrus.New()
-)
-
 type flags struct {
 	Concurrency        int
 	Debug              bool
@@ -50,6 +46,10 @@ type flags struct {
 }
 
 type hostnamesValue []string
+
+var (
+	logger = logrus.New()
+)
 
 func (h *hostnamesValue) String() string {
 	return strings.Join(*h, ",")
@@ -99,12 +99,6 @@ func parseFlags() *flags {
 	flag.Parse()
 
 	return f
-}
-
-type SSHClientImpl struct{}
-
-func (s *SSHClientImpl) Dial(network, addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
-	return ssh.Dial(network, addr, config)
 }
 
 func readScriptFile(path string) (string, error) {
@@ -230,6 +224,41 @@ func addHosts(hostnames []string, hostGroup *steelcut.HostGroup, options ...stee
 	}
 }
 
+func getHostInfo(host steelcut.Host) (HostInfo, error) {
+	cpuUsage, err := host.CPUUsage()
+	if err != nil {
+		return HostInfo{}, err
+	}
+
+	memoryUsage, err := host.MemoryUsage()
+	if err != nil {
+		return HostInfo{}, err
+	}
+
+	diskUsage, err := host.DiskUsage()
+	if err != nil {
+		return HostInfo{}, err
+	}
+
+	runningProcesses, err := host.RunningProcesses()
+	if err != nil {
+		return HostInfo{}, err
+	}
+
+	return HostInfo{
+		CPUUsage:         cpuUsage,
+		DiskUsage:        diskUsage,
+		MemoryUsage:      memoryUsage,
+		RunningProcesses: runningProcesses,
+	}, nil
+}
+
+type SSHClientImpl struct{}
+
+func (s *SSHClientImpl) Dial(network, addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
+	return ssh.Dial(network, addr, config)
+}
+
 func main() {
 	f := parseFlags()
 
@@ -353,33 +382,4 @@ func main() {
 		}, f.Concurrency)
 	}
 
-}
-
-func getHostInfo(host steelcut.Host) (HostInfo, error) {
-	cpuUsage, err := host.CPUUsage()
-	if err != nil {
-		return HostInfo{}, err
-	}
-
-	memoryUsage, err := host.MemoryUsage()
-	if err != nil {
-		return HostInfo{}, err
-	}
-
-	diskUsage, err := host.DiskUsage()
-	if err != nil {
-		return HostInfo{}, err
-	}
-
-	runningProcesses, err := host.RunningProcesses()
-	if err != nil {
-		return HostInfo{}, err
-	}
-
-	return HostInfo{
-		CPUUsage:         cpuUsage,
-		DiskUsage:        diskUsage,
-		MemoryUsage:      memoryUsage,
-		RunningProcesses: runningProcesses,
-	}, nil
 }
