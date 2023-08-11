@@ -91,6 +91,10 @@ func determineOS(host *UnixHost) (string, error) {
 }
 
 func (h UnixHost) IsReachable() error {
+	if h.isLocal() {
+		return nil
+	}
+
 	if err := h.ping(); err != nil {
 		return err
 	}
@@ -108,6 +112,10 @@ func (h UnixHost) ping() error {
 }
 
 func (h UnixHost) sshable() error {
+	if h.isLocal() {
+		return nil
+	}
+
 	config, err := h.getSSHConfig()
 	if err != nil {
 		return err
