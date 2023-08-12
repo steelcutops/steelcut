@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"gopkg.in/ini.v1"
@@ -156,17 +155,14 @@ func executeScript(host steelcut.Host, script string) error {
 }
 
 func processHosts(hg *steelcut.HostGroup, action func(host steelcut.Host) error, maxConcurrency int) error {
-	var wg sync.WaitGroup
-	errCh := make(chan error, len(hg.Hosts))
 	sem := make(chan struct{}, maxConcurrency) // Create semaphore with buffer size equal to max concurrency
+	errCh := make(chan error, len(hg.Hosts))
 
 	hg.RLock()
 	for _, host := range hg.Hosts {
-		wg.Add(1)
 		go func(h steelcut.Host) {
 			sem <- struct{}{}        // Acquire token
 			defer func() { <-sem }() // Release token
-			defer wg.Done()
 			if err := action(h); err != nil {
 				errCh <- err
 			}
@@ -174,7 +170,10 @@ func processHosts(hg *steelcut.HostGroup, action func(host steelcut.Host) error,
 	}
 	hg.RUnlock()
 
-	wg.Wait()
+	for i := 0; i < maxConcurrency; i++ {
+		sem <- struct{}{}
+	}
+
 	close(errCh)
 	close(sem) // Close the semaphore channel when done
 
@@ -187,6 +186,7 @@ func processHosts(hg *steelcut.HostGroup, action func(host steelcut.Host) error,
 		for _, err := range errors {
 			log.Printf("Host processing error: %v", err)
 		}
+		return fmt.Errorf("some hosts encountered errors")
 	}
 
 	return nil
