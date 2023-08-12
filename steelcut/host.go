@@ -46,6 +46,14 @@ type Host interface {
 	UpgradePackage(pkg string) error
 }
 
+type FileManager interface {
+	CreateDirectory(path string) error
+	DeleteDirectory(path string) error
+	ListDirectory(path string) ([]string, error)
+	SetPermissions(path string, mode os.FileMode) error
+	GetPermissions(path string) (os.FileMode, error)
+}
+
 type HostOption func(*UnixHost)
 
 func WithUser(user string) HostOption {
