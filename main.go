@@ -290,7 +290,6 @@ func getHostInfo(host steelcut.Host) (HostInfo, error) {
 
 func main() {
 	f := parseFlags()
-	checkArgs(flag.Args())
 	configureLogger(f)
 
 	password, keyPass := readPasswords(f)
@@ -341,13 +340,6 @@ func main() {
 
 	if f.Monitor {
 		monitorHosts(hostGroup, f)
-	}
-}
-
-func checkArgs(args []string) {
-	if len(args) == 0 {
-		fmt.Println("No arguments provided. Exiting.")
-		os.Exit(0)
 	}
 }
 
