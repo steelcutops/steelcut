@@ -237,7 +237,7 @@ func upgradeAllPackages(host steelcut.Host) error {
 	if err != nil {
 		return fmt.Errorf("failed to upgrade packages: %v", err)
 	}
-	fmt.Println("Successfully upgraded all packages.")
+	fmt.Printf("Upgraded packages on host %s\n", host.Hostname())
 	return nil
 }
 
