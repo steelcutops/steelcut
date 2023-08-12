@@ -290,26 +290,82 @@ func getHostInfo(host steelcut.Host) (HostInfo, error) {
 
 func main() {
 	f := parseFlags()
+	checkArgs(flag.Args())
+	configureLogger(f)
 
-	if len(flag.Args()) == 0 {
-		fmt.Println("No arguments provided. Exiting.")
-		return
+	password, keyPass := readPasswords(f)
+	options := buildHostOptions(f, password, keyPass)
+
+	hostGroup := initializeHosts(f, options)
+
+	if f.InfoDump {
+		err := processHosts(hostGroup, dumpHostInfo, f.Concurrency)
+		if err != nil {
+			log.Fatalf("Error during InfoDump: %v", err)
+		}
 	}
 
+	if f.ListPackages {
+		err := processHosts(hostGroup, listAllPackages, f.Concurrency)
+		if err != nil {
+			log.Fatalf("Error during ListPackages: %v", err)
+		}
+	}
+
+	if f.ListUpgradable {
+		err := processHosts(hostGroup, listUpgradablePackages, f.Concurrency)
+		if err != nil {
+			log.Fatalf("Error during ListUpgradable: %v", err)
+		}
+	}
+
+	if f.UpgradePackages {
+		err := processHosts(hostGroup, upgradeAllPackages, f.Concurrency)
+		if err != nil {
+			log.Fatalf("Error during UpgradePackages: %v", err)
+		}
+	}
+
+	if f.ScriptPath != "" {
+		script, err := readScriptFile(f.ScriptPath)
+		if err != nil {
+			log.Fatalf("Failed to read script file: %v", err)
+		}
+		err = processHosts(hostGroup, func(host steelcut.Host) error {
+			return executeScript(host, script)
+		}, f.Concurrency)
+		if err != nil {
+			log.Fatalf("Error during Script execution: %v", err)
+		}
+	}
+
+	if f.Monitor {
+		monitorHosts(hostGroup, f)
+	}
+}
+
+func checkArgs(args []string) {
+	if len(args) == 0 {
+		fmt.Println("No arguments provided. Exiting.")
+		os.Exit(0)
+	}
+}
+
+func configureLogger(f *flags) {
 	file, err := os.OpenFile(f.LogFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		logrus.Fatal(err)
 	}
 	defer file.Close()
-
 	logger.SetOutput(file)
 	if f.Debug {
 		logger.SetLevel(logrus.DebugLevel)
 	} else {
 		logger.SetLevel(logrus.InfoLevel)
 	}
+}
 
-	var password, keyPass string
+func readPasswords(f *flags) (password, keyPass string) {
 	if f.PasswordPrompt {
 		fmt.Print("Enter the password: ")
 		passwordBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
@@ -329,7 +385,10 @@ func main() {
 		keyPass = string(keyPassBytes)
 		fmt.Println()
 	}
+	return
+}
 
+func buildHostOptions(f *flags, password, keyPass string) []steelcut.HostOption {
 	var options []steelcut.HostOption
 	if f.Username != "" {
 		options = append(options, steelcut.WithUser(f.Username))
@@ -340,86 +399,39 @@ func main() {
 	if keyPass != "" {
 		options = append(options, steelcut.WithKeyPassphrase(keyPass))
 	}
-
-	if len(f.Hostnames) == 0 {
-		f.Hostnames = append(f.Hostnames, "localhost")
-	}
-
-	var sudoPassword string
 	if f.SudoPasswordPrompt {
 		fmt.Print("Enter the sudo password: ")
 		sudoPasswordBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			log.Fatalf("Failed to read sudo password: %v", err)
 		}
-		sudoPassword = string(sudoPasswordBytes)
+		sudoPassword := string(sudoPasswordBytes)
 		fmt.Println()
+		if sudoPassword != "" {
+			options = append(options, steelcut.WithSudoPassword(sudoPassword))
+		}
 	}
+	options = append(options, steelcut.WithSSHClient(&steelcut.RealSSHClient{}))
+	return options
+}
 
-	if sudoPassword != "" {
-		options = append(options, steelcut.WithSudoPassword(sudoPassword))
-	}
-
+func initializeHosts(f *flags, options []steelcut.HostOption) *steelcut.HostGroup {
 	hostGroup := steelcut.NewHostGroup()
-
-	client := &steelcut.RealSSHClient{}
-	options = append(options, steelcut.WithSSHClient(client))
 
 	if f.IniFilePath != "" {
 		hostsMap, err := readHostsFromFile(f.IniFilePath)
 		if err != nil {
 			log.Fatalf("Failed to read INI file: %v", err)
 		}
-
 		for group, hosts := range hostsMap {
 			log.Printf("Adding hosts from group %s", group)
 			addHosts(hosts, hostGroup, options...)
 		}
 	}
-
+	if len(f.Hostnames) == 0 {
+		f.Hostnames = append(f.Hostnames, "localhost")
+	}
 	addHosts(f.Hostnames, hostGroup, options...)
 
-	if f.InfoDump {
-		processHosts(hostGroup, dumpHostInfo, f.Concurrency)
-	}
-
-	if f.Monitor {
-		go monitorHosts(hostGroup, f)
-		stopChan := make(chan struct{})
-		<-stopChan
-	}
-
-	if f.ListPackages {
-		processHosts(hostGroup, listAllPackages, f.Concurrency)
-	}
-
-	if f.ListUpgradable {
-		processHosts(hostGroup, listUpgradablePackages, f.Concurrency)
-	}
-
-	if f.UpgradePackages {
-		processHosts(hostGroup, upgradeAllPackages, f.Concurrency)
-	}
-
-	if f.ExecCommand != "" {
-		results := hostGroup.RunCommandOnAll(f.ExecCommand)
-		for _, result := range results {
-			if result.Error != nil {
-				logger.Error(result.Error)
-			} else {
-				fmt.Printf("Output of command on host %s:\n%s\n", result.Host, result.Result)
-			}
-		}
-	}
-
-	if f.ScriptPath != "" {
-		script, err := readScriptFile(f.ScriptPath)
-		if err != nil {
-			log.Fatalf("Failed to read script file: %v", err)
-		}
-		processHosts(hostGroup, func(host steelcut.Host) error {
-			return executeScript(host, script)
-		}, f.Concurrency)
-	}
-
+	return hostGroup
 }
