@@ -5,23 +5,36 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"os/user"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 )
 
 type SSHClient interface {
-	Dial(network, addr string, config *ssh.ClientConfig) (*ssh.Client, error)
+	Dial(network, addr string, config *ssh.ClientConfig, timeout time.Duration) (*ssh.Client, error)
 }
 
 type RealSSHClient struct{}
 
-func (c RealSSHClient) Dial(network, addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
-	return ssh.Dial(network, addr, config)
+func (c RealSSHClient) Dial(network, addr string, config *ssh.ClientConfig, timeout time.Duration) (*ssh.Client, error) {
+	// Dial with a timeout
+	conn, err := net.DialTimeout(network, addr, timeout)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create an SSH client connection using the underlying network connection
+	sshConn, chans, reqs, err := ssh.NewClientConn(conn, addr, config)
+	if err != nil {
+		return nil, err
+	}
+	return ssh.NewClient(sshConn, chans, reqs), nil
 }
 
 type SystemReporter interface {
@@ -132,7 +145,8 @@ func (h UnixHost) sshable() error {
 		return err
 	}
 
-	client, err := h.SSHClient.Dial("tcp", h.Hostname()+":22", config)
+	timeout := 5 * time.Second // You can change this value
+	client, err := h.SSHClient.Dial("tcp", h.Hostname()+":22", config, timeout)
 	if err != nil {
 		return fmt.Errorf("SSH test failed: %v", err)
 	}
@@ -236,7 +250,8 @@ func (h UnixHost) CopyFile(localPath string, remotePath string) error {
 	}
 
 	// Dial SSH connection
-	client, err := h.SSHClient.Dial("tcp", h.Hostname()+":22", config)
+	timeout := 5 * time.Second // You can change this value
+	client, err := h.SSHClient.Dial("tcp", h.Hostname()+":22", config, timeout)
 	if err != nil {
 		return err
 	}
@@ -324,7 +339,8 @@ func (h UnixHost) runRemoteCommand(cmd string, useSudo bool, sudoPassword string
 		return "", err
 	}
 
-	client, err := h.SSHClient.Dial("tcp", h.Hostname()+":22", config)
+	timeout := 5 * time.Second // You can change this value
+	client, err := h.SSHClient.Dial("tcp", h.Hostname()+":22", config, timeout)
 	if err != nil {
 		return "", err
 	}

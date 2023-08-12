@@ -10,8 +10,6 @@ import (
 
 	"gopkg.in/ini.v1"
 
-	"golang.org/x/crypto/ssh"
-
 	"encoding/json"
 
 	"github.com/m-217/steelcut/steelcut"
@@ -289,12 +287,6 @@ func getHostInfo(host steelcut.Host) (HostInfo, error) {
 	}, nil
 }
 
-type SSHClientImpl struct{}
-
-func (s *SSHClientImpl) Dial(network, addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
-	return ssh.Dial(network, addr, config)
-}
-
 func main() {
 	f := parseFlags()
 
@@ -364,7 +356,7 @@ func main() {
 
 	hostGroup := steelcut.NewHostGroup()
 
-	client := &SSHClientImpl{}
+	client := &steelcut.RealSSHClient{}
 	options = append(options, steelcut.WithSSHClient(client))
 
 	if f.IniFilePath != "" {
