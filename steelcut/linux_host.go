@@ -3,6 +3,7 @@ package steelcut
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -33,8 +34,10 @@ func (h LinuxHost) UpgradeAllPackages() ([]Update, error) {
 }
 
 func (h LinuxHost) CheckUpdates() ([]Update, error) {
+	log.Printf("Checking for OS updates on %s", h.Hostname())
 	updates, err := h.PackageManager.CheckOSUpdates(h.UnixHost)
 	if err != nil {
+		log.Printf("Error checking OS updates: %v", err)
 		return nil, err
 	}
 

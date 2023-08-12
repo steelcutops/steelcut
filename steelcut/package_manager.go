@@ -48,12 +48,15 @@ func (pm YumPackageManager) UpgradePackage(host *UnixHost, pkg string) error {
 }
 
 func (pm YumPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
+	log.Print("Checking for YUM OS updates")
 	output, err := host.RunCommand("yum check-update")
 	if err != nil {
+		log.Printf("Error checking YUM updates: %v", err)
 		return nil, err
 	}
 
 	updates := strings.Split(output, "\n")
+	log.Printf("YUM Updates available: %v", updates)
 	return updates, nil
 }
 
@@ -103,7 +106,6 @@ func (pm AptPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
 }
 
 func (pm AptPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
-	log.Print("Checking for OS updates")
 	_, err := host.RunCommand("apt update", true)
 	if err != nil {
 		log.Fatalf("Failed to update apt: %v", err)

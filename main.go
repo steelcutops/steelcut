@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"gopkg.in/ini.v1"
@@ -154,10 +155,13 @@ func executeScript(host steelcut.Host, script string) error {
 func processHosts(hg *steelcut.HostGroup, action func(host steelcut.Host) error, maxConcurrency int) error {
 	sem := make(chan struct{}, maxConcurrency) // Create semaphore with buffer size equal to max concurrency
 	errCh := make(chan error, len(hg.Hosts))
+	var wg sync.WaitGroup
 
 	hg.RLock()
 	for _, host := range hg.Hosts {
+		wg.Add(1) // Increment wait group counter
 		go func(h steelcut.Host) {
+			defer wg.Done()          // Decrement wait group counter when done
 			sem <- struct{}{}        // Acquire token
 			defer func() { <-sem }() // Release token
 			if err := action(h); err != nil {
@@ -167,12 +171,9 @@ func processHosts(hg *steelcut.HostGroup, action func(host steelcut.Host) error,
 	}
 	hg.RUnlock()
 
-	for i := 0; i < maxConcurrency; i++ {
-		sem <- struct{}{}
-	}
+	wg.Wait() // Wait for all goroutines to complete
 
-	close(errCh)
-	close(sem) // Close the semaphore channel when done
+	close(errCh) // Close error channel when done
 
 	var errors []error
 	for err := range errCh {
