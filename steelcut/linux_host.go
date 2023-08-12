@@ -2,8 +2,11 @@ package steelcut
 
 import (
 	"bufio"
+	"encoding/binary"
 	"fmt"
+	"io"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -182,4 +185,45 @@ func (h LinuxHost) Reboot() error {
 func (h LinuxHost) Shutdown() error {
 	_, err := h.RunCommand("sudo shutdown -h now")
 	return err
+}
+
+// UTMP represents an entry in the wtmp file
+type UTMP struct {
+	Type int16     // Type of login
+	_    [2]byte   // Alignment padding
+	PID  int32     // Process ID
+	Line [32]byte  // Device name
+	ID   [4]byte   // Terminal ID
+	User [32]byte  // Username
+	Host [256]byte // Hostname
+	_    [64]byte  // Additional fields
+}
+
+func (h LinuxHost) ListUserSessions() ([]string, error) {
+	file, err := os.Open("/var/log/wtmp")
+	if err != nil {
+		return nil, fmt.Errorf("error opening wtmp file: %v", err)
+	}
+	defer file.Close()
+
+	var userSessions []string
+	for {
+		var utmp UTMP
+		err := binary.Read(file, binary.LittleEndian, &utmp)
+		if err != nil {
+			if err != io.EOF {
+				return nil, fmt.Errorf("error reading wtmp entry: %v", err)
+			}
+			break
+		}
+
+		session := fmt.Sprintf("Type: %d, PID: %d, Line: %s, User: %s, Host: %s",
+			utmp.Type,
+			utmp.PID,
+			string(utmp.Line[:]),
+			string(utmp.User[:]),
+			string(utmp.Host[:]))
+		userSessions = append(userSessions, session)
+	}
+	return userSessions, nil
 }
