@@ -291,6 +291,11 @@ func getHostInfo(host steelcut.Host) (HostInfo, error) {
 func main() {
 	f := parseFlags()
 
+	if len(flag.Args()) == 0 {
+		fmt.Println("No arguments provided. Exiting.")
+		return
+	}
+
 	file, err := os.OpenFile(f.LogFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		logrus.Fatal(err)
