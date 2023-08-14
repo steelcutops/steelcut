@@ -336,11 +336,20 @@ func (h UnixHost) runLocalCommand(cmd string, useSudo bool, sudoPassword string)
 		command := exec.Command("sudo", sudoCmd...)
 		command.Stdin = strings.NewReader(sudoPassword + "\n") // Write password to stdin
 		out, err := command.CombinedOutput()
+		outputStr := string(out)
+
+		// Check for sudo-related errors
+		if strings.Contains(outputStr, "incorrect password") {
+			return "", errors.New("sudo: incorrect password provided")
+		}
+		if strings.Contains(outputStr, "is not in the sudoers file") {
+			return "", errors.New("sudo: user is not in the sudoers file")
+		}
 		if err != nil {
-			log.Printf("Error running local command with sudo: %v, Output: %s\n", err, string(out))
+			log.Printf("Error running local command with sudo: %v, Output: %s\n", err, outputStr)
 			return "", err
 		}
-		return string(out), nil
+		return outputStr, nil
 	}
 
 	command := exec.Command(head, parts...)
@@ -378,13 +387,38 @@ func (h UnixHost) runRemoteCommand(cmd string, useSudo bool, sudoPassword string
 		session.Stdin = strings.NewReader(sudoPassword + "\n") // Write password to stdin
 	}
 
-	output, err := session.CombinedOutput(cmd)
-	if err != nil {
+	// Handling command timeout
+	outputCh := make(chan []byte)
+	errCh := make(chan error)
+	go func() {
+		output, err := session.CombinedOutput(cmd)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		outputCh <- output
+	}()
+
+	select {
+	case output := <-outputCh:
+		outputStr := string(output)
+
+		// Check for sudo-related errors
+		if strings.Contains(outputStr, "incorrect password") {
+			return "", errors.New("sudo: incorrect password provided")
+		}
+		if strings.Contains(outputStr, "is not in the sudoers file") {
+			return "", errors.New("sudo: user is not in the sudoers file")
+		}
+		return outputStr, nil
+
+	case err := <-errCh:
 		log.Printf("Error running command over SSH with sudo: %v\n", err)
 		return "", err
-	}
 
-	return string(output), nil
+	case <-time.After(timeout):
+		return "", errors.New("command timed out")
+	}
 }
 
 func (h UnixHost) getSSHConfig() (*ssh.ClientConfig, error) {
