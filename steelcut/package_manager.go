@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// PackageManager interface defines the methods that package manager implementations must provide.
 type PackageManager interface {
 	ListPackages(*UnixHost) ([]string, error)
 	AddPackage(*UnixHost, string) error
@@ -15,13 +16,16 @@ type PackageManager interface {
 	UpgradeAll(*UnixHost) ([]Update, error)
 }
 
+// Update represents a package update.
 type Update struct {
 	PackageName string
 	Version     string
 }
 
+// YumPackageManager provides the implementation of PackageManager for the YUM package manager.
 type YumPackageManager struct{}
 
+// ListPackages returns the installed packages.
 func (pm YumPackageManager) ListPackages(host *UnixHost) ([]string, error) {
 	output, err := host.RunCommand("yum list installed")
 	if err != nil {
@@ -60,6 +64,7 @@ func (pm YumPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	return updates, nil
 }
 
+// UpgradeAll upgrades all the packages to their latest versions.
 func (pm YumPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
 	output, err := host.RunCommand("yum update -y", true)
 	if err != nil {
@@ -71,6 +76,7 @@ func (pm YumPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
 
 type AptPackageManager struct{}
 
+// ListPackages returns the installed packages.
 func (pm AptPackageManager) ListPackages(host *UnixHost) ([]string, error) {
 	output, err := host.RunCommand("apt list --installed")
 	if err != nil {
@@ -81,21 +87,25 @@ func (pm AptPackageManager) ListPackages(host *UnixHost) ([]string, error) {
 	return packages, nil
 }
 
+// AddPackage adds a package to the host.
 func (pm AptPackageManager) AddPackage(host *UnixHost, pkg string) error {
 	_, err := host.RunCommand(fmt.Sprintf("apt install -y %s", pkg), true)
 	return err
 }
 
+// RemovePackage removes a package from the host.
 func (pm AptPackageManager) RemovePackage(host *UnixHost, pkg string) error {
 	_, err := host.RunCommand(fmt.Sprintf("apt remove -y %s", pkg), true)
 	return err
 }
 
+// UpgradePackage upgrades a package to the latest version.
 func (pm AptPackageManager) UpgradePackage(host *UnixHost, pkg string) error {
 	_, err := host.RunCommand(fmt.Sprintf("apt upgrade -y %s", pkg), true)
 	return err
 }
 
+// UpgradeAll upgrades all the packages to their latest versions.
 func (pm AptPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
 	output, err := host.RunCommand("apt upgrade -y", true)
 	if err != nil {
@@ -105,6 +115,7 @@ func (pm AptPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
 	return updates, nil
 }
 
+// CheckOSUpdates checks for OS updates.
 func (pm AptPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	_, err := host.RunCommand("apt update", true)
 	if err != nil {
@@ -121,6 +132,7 @@ func (pm AptPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	return updates, nil
 }
 
+// parseAptUpdates parses the output of `apt upgrade -y` to get the list of packages that will be upgraded.
 func (pm AptPackageManager) parseAptUpdates(output string) []Update {
 	lines := strings.Split(output, "\n")
 	var updates []Update
@@ -147,6 +159,7 @@ func (pm AptPackageManager) parseAptUpdates(output string) []Update {
 
 type BrewPackageManager struct{}
 
+// ListPackages returns the installed packages.
 func (pm BrewPackageManager) ListPackages(host *UnixHost) ([]string, error) {
 	output, err := host.RunCommand("brew list --version")
 	if err != nil {
@@ -157,6 +170,7 @@ func (pm BrewPackageManager) ListPackages(host *UnixHost) ([]string, error) {
 	return packages, nil
 }
 
+// AddPackage adds a package to the host.
 func (pm BrewPackageManager) AddPackage(host *UnixHost, pkg string) error {
 	_, err := host.RunCommand(fmt.Sprintf("brew install %s", pkg))
 	return err
@@ -167,11 +181,13 @@ func (pm BrewPackageManager) RemovePackage(host *UnixHost, pkg string) error {
 	return err
 }
 
+// UpgradePackage upgrades a package to the latest version.
 func (pm BrewPackageManager) UpgradePackage(host *UnixHost, pkg string) error {
 	_, err := host.RunCommand(fmt.Sprintf("brew upgrade %s", pkg))
 	return err
 }
 
+// CheckOSUpdates checks for OS updates.
 func (pm BrewPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	output, err := host.RunCommand("brew outdated")
 	if err != nil {
@@ -182,6 +198,7 @@ func (pm BrewPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	return updates, nil
 }
 
+// UpgradeAll upgrades all the packages to their latest versions.
 func (pm BrewPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
 	// We explicitly don't want to run as root here, as brew will complain
 	output, err := host.RunCommand("brew upgrade", false)
@@ -192,6 +209,7 @@ func (pm BrewPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
 	return updates, nil
 }
 
+// parseUpdates parses the output of `brew upgrade` to get the list of packages that will be upgraded.
 func (pm BrewPackageManager) parseUpdates(output string) []Update {
 	lines := strings.Split(output, "\n")
 	var updates []Update
@@ -213,6 +231,7 @@ func (pm BrewPackageManager) parseUpdates(output string) []Update {
 	return updates
 }
 
+// parseUpdates is a common function used to parse package update information.
 func parseUpdates(output string) []Update {
 	lines := strings.Split(output, "\n")
 	var updates []Update
