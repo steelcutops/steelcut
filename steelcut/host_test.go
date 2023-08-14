@@ -35,3 +35,15 @@ func TestNewHost_MacOS(t *testing.T) {
 		t.Errorf("Expected hostname to be 'localhost', got: %s", macOSHost.Hostname())
 	}
 }
+
+func TestNewHost_InvalidOS(t *testing.T) {
+	_, err := NewHost("localhost", WithOS("UnsupportedOS"))
+	if err == nil {
+		t.Fatalf("Expected an error for unsupported OS, got nil")
+	}
+
+	expectedErr := "unsupported operating system: UnsupportedOS"
+	if err.Error() != expectedErr {
+		t.Errorf("Expected error message '%s', got: %v", expectedErr, err)
+	}
+}
