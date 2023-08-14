@@ -123,5 +123,5 @@ func (h MacOSHost) MemoryUsage() (float64, error) {
 		return 0, fmt.Errorf("error parsing active memory pages: %v", err)
 	}
 
-	return float64(activeMemory * PageSize) / 1024 / 1024, nil
+	return float64(activeMemory*PageSize) / 1024 / 1024, nil
 }

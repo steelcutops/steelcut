@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -9,13 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"gopkg.in/ini.v1"
-
-	"encoding/json"
-
 	"github.com/m-217/steelcut/steelcut"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/term"
+	"gopkg.in/ini.v1"
 )
 
 type HostInfo struct {
