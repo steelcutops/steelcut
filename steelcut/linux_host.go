@@ -11,31 +11,38 @@ import (
 	"strings"
 )
 
+// LinuxHost represents a Linux host with package management capabilities.
 type LinuxHost struct {
 	*UnixHost
 	PackageManager PackageManager
 }
 
+// ListPackages retrieves a list of installed packages on the Linux host.
 func (h LinuxHost) ListPackages() ([]string, error) {
 	return h.PackageManager.ListPackages(h.UnixHost)
 }
 
+// AddPackage installs the given package on the Linux host.
 func (h LinuxHost) AddPackage(pkg string) error {
 	return h.PackageManager.AddPackage(h.UnixHost, pkg)
 }
 
+// RemovePackage uninstalls the given package from the Linux host.
 func (h LinuxHost) RemovePackage(pkg string) error {
 	return h.PackageManager.RemovePackage(h.UnixHost, pkg)
 }
 
+// UpgradePackage upgrades the given package to the latest version on the Linux host.
 func (h LinuxHost) UpgradePackage(pkg string) error {
 	return h.PackageManager.UpgradePackage(h.UnixHost, pkg)
 }
 
+// UpgradeAllPackages upgrades all installed packages to their latest versions on the Linux host.
 func (h LinuxHost) UpgradeAllPackages() ([]Update, error) {
 	return h.PackageManager.UpgradeAll(h.UnixHost)
 }
 
+// CheckUpdates checks for available updates for the OS and returns them as a slice of Update objects.
 func (h LinuxHost) CheckUpdates() ([]Update, error) {
 	log.Printf("Checking for OS updates on %s", h.Hostname())
 	updates, err := h.PackageManager.CheckOSUpdates(h.UnixHost)
@@ -63,10 +70,12 @@ func (h LinuxHost) CheckUpdates() ([]Update, error) {
 	return parsedUpdates, nil
 }
 
+// RunCommand runs the given command on the Linux host and returns the output.
 func (h LinuxHost) RunCommand(cmd string) (string, error) {
 	return h.UnixHost.RunCommand(cmd)
 }
 
+// CPUUsage calculates the CPU usage as a percentage on the Linux host.
 func (h LinuxHost) CPUUsage() (float64, error) {
 	output, err := h.RunCommand("cat /proc/stat")
 	if err != nil {
@@ -114,6 +123,7 @@ func (h LinuxHost) CPUUsage() (float64, error) {
 	return usage, nil
 }
 
+// MemoryUsage calculates the memory usage as a percentage on the Linux host.
 func (h LinuxHost) MemoryUsage() (float64, error) {
 	output, err := h.RunCommand("cat /proc/meminfo")
 	if err != nil {
@@ -145,6 +155,7 @@ func (h LinuxHost) MemoryUsage() (float64, error) {
 	return memUsage, nil
 }
 
+// DiskUsage calculates the disk usage as a percentage for the root directory on the Linux host.
 func (h LinuxHost) DiskUsage() (float64, error) {
 	output, err := h.RunCommand("df --output=pcent /")
 	if err != nil {
@@ -166,6 +177,7 @@ func (h LinuxHost) DiskUsage() (float64, error) {
 	return usage, nil
 }
 
+// RunningProcesses retrieves a list of running processes on the Linux host.
 func (h LinuxHost) RunningProcesses() ([]string, error) {
 	output, err := h.RunCommand("ps aux")
 	if err != nil {
@@ -177,11 +189,13 @@ func (h LinuxHost) RunningProcesses() ([]string, error) {
 	return lines[1:], nil // Skip the header line
 }
 
+// Reboot restarts the Linux host.
 func (h LinuxHost) Reboot() error {
 	_, err := h.RunCommand("sudo reboot")
 	return err
 }
 
+// Shutdown powers off the Linux host.
 func (h LinuxHost) Shutdown() error {
 	_, err := h.RunCommand("sudo shutdown -h now")
 	return err
@@ -199,6 +213,7 @@ type UTMP struct {
 	_    [64]byte  // Additional fields
 }
 
+// ListUserSessions retrieves a list of user sessions from the wtmp log file.
 func (h LinuxHost) ListUserSessions() ([]string, error) {
 	file, err := os.Open("/var/log/wtmp")
 	if err != nil {
