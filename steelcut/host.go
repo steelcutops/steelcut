@@ -1,3 +1,5 @@
+// Package steelcut provides functionalities to manage Unix hosts, perform SSH connections,
+// report system-related information, and manage files and directories.
 package steelcut
 
 import (
@@ -16,12 +18,15 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// SSHClient defines an interface for dialing and establishing an SSH connection.
 type SSHClient interface {
 	Dial(network, addr string, config *ssh.ClientConfig, timeout time.Duration) (*ssh.Client, error)
 }
 
+// RealSSHClient provides a real implementation of the SSHClient interface.
 type RealSSHClient struct{}
 
+// Dial dials an SSH connection with the given network, address, client config, and timeout.
 func (c RealSSHClient) Dial(network, addr string, config *ssh.ClientConfig, timeout time.Duration) (*ssh.Client, error) {
 	// Dial with a timeout
 	conn, err := net.DialTimeout(network, addr, timeout)
@@ -37,6 +42,7 @@ func (c RealSSHClient) Dial(network, addr string, config *ssh.ClientConfig, time
 	return ssh.NewClient(sshConn, chans, reqs), nil
 }
 
+// SystemReporter defines an interface for reporting system-related information.
 type SystemReporter interface {
 	CPUUsage() (float64, error)
 	DiskUsage() (float64, error)
@@ -44,6 +50,7 @@ type SystemReporter interface {
 	RunningProcesses() ([]string, error)
 }
 
+// Host defines an interface for performing operations on a host system.
 type Host interface {
 	AddPackage(pkg string) error
 	CheckUpdates() ([]Update, error)
@@ -59,6 +66,7 @@ type Host interface {
 	UpgradePackage(pkg string) error
 }
 
+// FileManager defines an interface for performing file management operations.
 type FileManager interface {
 	CreateDirectory(path string) error
 	DeleteDirectory(path string) error
@@ -69,36 +77,42 @@ type FileManager interface {
 
 type HostOption func(*UnixHost)
 
+// WithUser returns a HostOption that sets the user for a UnixHost.
 func WithUser(user string) HostOption {
 	return func(host *UnixHost) {
 		host.User = user
 	}
 }
 
+// WithPassword returns a HostOption that sets the password for a UnixHost.
 func WithPassword(password string) HostOption {
 	return func(host *UnixHost) {
 		host.Password = password
 	}
 }
 
+// WithKeyPassphrase returns a HostOption that sets the key passphrase for a UnixHost.
 func WithKeyPassphrase(keyPassphrase string) HostOption {
 	return func(host *UnixHost) {
 		host.KeyPassphrase = keyPassphrase
 	}
 }
 
+// WithOS returns a HostOption that sets the OS for a UnixHost.
 func WithOS(os string) HostOption {
 	return func(host *UnixHost) {
 		host.OS = os
 	}
 }
 
+// WithSSHClient returns a HostOption that sets the SSHClient for a UnixHost.
 func WithSSHClient(client SSHClient) HostOption {
 	return func(h *UnixHost) {
 		h.SSHClient = client
 	}
 }
 
+// WithSudoPassword returns a HostOption that sets the sudo password for a UnixHost.
 func WithSudoPassword(password string) HostOption {
 	return func(host *UnixHost) {
 		host.SudoPassword = password
@@ -155,6 +169,7 @@ func (h UnixHost) sshable() error {
 	return nil
 }
 
+// NewHost returns a new Host based on the hostname and provided options.
 func NewHost(hostname string, options ...HostOption) (Host, error) {
 	unixHost := &UnixHost{
 		HostString: hostname,
@@ -205,6 +220,10 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 	}
 }
 
+// RunCommand executes the specified command on the host, either locally or remotely via SSH.
+// It takes the command string to be executed and optional parameters to modify the execution.
+// Supported options include using sudo for superuser privileges and providing a sudo password.
+// Returns the output of the command and an error if an error occurs during execution.
 func (h UnixHost) RunCommand(cmd string, options ...interface{}) (string, error) {
 	useSudo := false
 	sudoPassword := ""
@@ -224,6 +243,7 @@ func (h UnixHost) RunCommand(cmd string, options ...interface{}) (string, error)
 	return h.runCommandInternal(cmd, useSudo, sudoPassword)
 }
 
+// CopyFile copies a file from the local path to the remote path on the host.
 func (h UnixHost) CopyFile(localPath string, remotePath string) error {
 	// Check if the operation is local
 	if h.isLocal() {
@@ -283,6 +303,8 @@ func (h UnixHost) CopyFile(localPath string, remotePath string) error {
 	return nil
 }
 
+// runCommandInternal executes the given command on the host.
+// If useSudo is true, it runs the command with superuser privileges.
 func (h UnixHost) runCommandInternal(cmd string, useSudo bool, sudoPassword string) (string, error) {
 	if useSudo {
 		log.Printf("Using sudo for command '%s' on host '%s'\n", cmd, h.Hostname())
