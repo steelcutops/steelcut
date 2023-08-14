@@ -11,14 +11,18 @@ import (
 	"golang.org/x/crypto/ssh/agent"
 )
 
+// SSHKeyManager is an interface that defines methods for reading private SSH keys.
 type SSHKeyManager interface {
 	ReadPrivateKeys(keyPassphrase string) ([]ssh.Signer, error)
 }
 
+// FileSSHKeyManager is an implementation of SSHKeyManager that reads SSH keys from disk.
 type FileSSHKeyManager struct{}
 
+// AgentSSHKeyManager is an implementation of SSHKeyManager that reads SSH keys from an SSH agent.
 type AgentSSHKeyManager struct{}
 
+// ReadPrivateKeys reads private keys from the SSH agent.
 func (km AgentSSHKeyManager) ReadPrivateKeys(_ string) ([]ssh.Signer, error) {
 	// Get the SSH_AUTH_SOCK environment variable
 	socket := os.Getenv("SSH_AUTH_SOCK")
@@ -44,6 +48,7 @@ func (km AgentSSHKeyManager) ReadPrivateKeys(_ string) ([]ssh.Signer, error) {
 	return signers, nil
 }
 
+// ReadPrivateKeys reads private keys from the user's home directory.
 func (km FileSSHKeyManager) ReadPrivateKeys(keyPassphrase string) ([]ssh.Signer, error) {
 	// Find possible key files
 	files, err := filepath.Glob(os.Getenv("HOME") + "/.ssh/id_*")
