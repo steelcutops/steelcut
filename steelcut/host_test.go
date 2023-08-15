@@ -47,3 +47,37 @@ func TestNewHost_InvalidOS(t *testing.T) {
 		t.Errorf("Expected error message '%s', got: %v", expectedErr, err)
 	}
 }
+
+// Test without providing any options.
+func TestNewHost_NoOptions(t *testing.T) {
+	_, err := NewHost("")
+	if err == nil {
+		t.Fatalf("Expected an error for no options, got nil")
+	}
+}
+
+// Test with multiple valid options.
+func TestNewHost_MultipleOptions(t *testing.T) {
+	host, err := NewHost("localhost", WithOS("Linux"))
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	linuxHost, ok := host.(*LinuxHost)
+	if !ok {
+		t.Fatalf("Expected a *LinuxHost, got: %T", host)
+	}
+
+	if linuxHost.Hostname() != "localhost" {
+		t.Errorf("Expected hostname to be 'localhost', got: %s", linuxHost.Hostname())
+	}
+
+}
+
+// Test with invalid hostname.
+func TestNewHost_InvalidHostname(t *testing.T) {
+	_, err := NewHost("!@#")
+	if err == nil {
+		t.Fatalf("Expected an error for invalid hostname, got nil")
+	}
+}
