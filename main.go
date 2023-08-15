@@ -257,6 +257,15 @@ func addHosts(hostnames []string, hostGroup *steelcut.HostGroup, options ...stee
 	}
 }
 
+func executeCommandOnHost(host steelcut.Host, command string) error {
+	result, err := host.RunCommand(command)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Output of command on host %s:\n%s\n", host.Hostname(), result)
+	return nil
+}
+
 func getHostInfo(host steelcut.Host) (HostInfo, error) {
 	cpuUsage, err := host.CPUUsage()
 	if err != nil {
@@ -294,6 +303,15 @@ func main() {
 	options := buildHostOptions(f, password, keyPass)
 
 	hostGroup := initializeHosts(f, options)
+
+	if f.ExecCommand != "" {
+		err := processHosts(hostGroup, func(host steelcut.Host) error {
+			return executeCommandOnHost(host, f.ExecCommand)
+		}, f.Concurrency)
+		if err != nil {
+			log.Fatalf("Error during ExecCommand: %v", err)
+		}
+	}
 
 	if f.InfoDump {
 		err := processHosts(hostGroup, dumpHostInfo, f.Concurrency)
