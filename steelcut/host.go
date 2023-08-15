@@ -224,26 +224,32 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 	switch unixHost.OS {
 	case "Linux":
 		linuxHost := &LinuxHost{UnixHost: unixHost}
-		// Determine the package manager.
+
+		// Set the executor if it's nil AFTER creating the LinuxHost.
+		if unixHost.Executor == nil {
+			linuxHost.Executor = DefaultCommandExecutor{Host: linuxHost}
+			unixHost.Executor = linuxHost.Executor
+		}
+
 		osRelease, _ := linuxHost.RunCommand("cat /etc/os-release")
 		if strings.Contains(osRelease, "ID=ubuntu") || strings.Contains(osRelease, "ID=debian") {
 			log.Println("Detected Debian/Ubuntu")
 			linuxHost.PackageManager = AptPackageManager{Executor: unixHost.Executor}
 		} else {
-			// Assume Red Hat/CentOS/Fedora if not Debian/Ubuntu.
 			log.Println("Detected Red Hat/CentOS/Fedora")
 			linuxHost.PackageManager = YumPackageManager{Executor: unixHost.Executor}
-		}
-		if unixHost.Executor == nil {
-			linuxHost.Executor = DefaultCommandExecutor{Host: linuxHost}
 		}
 		return linuxHost, nil
 	case "Darwin":
 		macHost := &MacOSHost{UnixHost: unixHost}
-		macHost.PackageManager = BrewPackageManager{Executor: unixHost.Executor}
+
+		// Set the executor if it's nil AFTER creating the MacOSHost.
 		if unixHost.Executor == nil {
 			macHost.Executor = DefaultCommandExecutor{Host: macHost}
+			unixHost.Executor = macHost.Executor
 		}
+
+		macHost.PackageManager = BrewPackageManager{Executor: unixHost.Executor}
 		return macHost, nil
 	default:
 		return nil, fmt.Errorf("unsupported operating system: %s", unixHost.OS)
