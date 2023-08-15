@@ -18,6 +18,10 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+type CommandExecutor interface {
+	RunCommand(command string, useSudo bool) (string, error)
+}
+
 // SSHClient defines an interface for dialing and establishing an SSH connection.
 type SSHClient interface {
 	Dial(network, addr string, config *ssh.ClientConfig, timeout time.Duration) (*ssh.Client, error)
@@ -40,6 +44,19 @@ func (c RealSSHClient) Dial(network, addr string, config *ssh.ClientConfig, time
 		return nil, err
 	}
 	return ssh.NewClient(sshConn, chans, reqs), nil
+}
+
+type DefaultCommandExecutor struct {
+	Host Host
+}
+
+func (dce DefaultCommandExecutor) RunCommand(command string, useSudo bool) (string, error) {
+	return dce.Host.RunCommand(command)
+}
+
+type CommandOptions struct {
+	UseSudo      bool
+	SudoPassword string
 }
 
 // SystemReporter defines an interface for reporting system-related information.
@@ -119,8 +136,16 @@ func WithSudoPassword(password string) HostOption {
 	}
 }
 
+func WithCommandExecutor(executor CommandExecutor) HostOption {
+	return func(h *UnixHost) {
+		h.Executor = executor
+	}
+}
+
 func determineOS(host *UnixHost) (string, error) {
-	output, err := host.RunCommand("uname")
+	output, err := host.RunCommand("uname", CommandOptions{
+		UseSudo: false,
+	})
 	if err != nil {
 		return "", err
 	}
@@ -169,7 +194,6 @@ func (h UnixHost) sshable() error {
 	return nil
 }
 
-// NewHost returns a new Host based on the hostname and provided options.
 func NewHost(hostname string, options ...HostOption) (Host, error) {
 	unixHost := &UnixHost{
 		HostString: hostname,
@@ -204,16 +228,22 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 		osRelease, _ := linuxHost.RunCommand("cat /etc/os-release")
 		if strings.Contains(osRelease, "ID=ubuntu") || strings.Contains(osRelease, "ID=debian") {
 			log.Println("Detected Debian/Ubuntu")
-			linuxHost.PackageManager = AptPackageManager{}
+			linuxHost.PackageManager = AptPackageManager{Executor: unixHost.Executor}
 		} else {
 			// Assume Red Hat/CentOS/Fedora if not Debian/Ubuntu.
 			log.Println("Detected Red Hat/CentOS/Fedora")
-			linuxHost.PackageManager = YumPackageManager{}
+			linuxHost.PackageManager = YumPackageManager{Executor: unixHost.Executor}
+		}
+		if unixHost.Executor == nil {
+			linuxHost.Executor = DefaultCommandExecutor{Host: linuxHost}
 		}
 		return linuxHost, nil
 	case "Darwin":
 		macHost := &MacOSHost{UnixHost: unixHost}
-		macHost.PackageManager = BrewPackageManager{}
+		macHost.PackageManager = BrewPackageManager{Executor: unixHost.Executor}
+		if unixHost.Executor == nil {
+			macHost.Executor = DefaultCommandExecutor{Host: macHost}
+		}
 		return macHost, nil
 	default:
 		return nil, fmt.Errorf("unsupported operating system: %s", unixHost.OS)
@@ -224,23 +254,8 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 // It takes the command string to be executed and optional parameters to modify the execution.
 // Supported options include using sudo for superuser privileges and providing a sudo password.
 // Returns the output of the command and an error if an error occurs during execution.
-func (h UnixHost) RunCommand(cmd string, options ...interface{}) (string, error) {
-	useSudo := false
-	sudoPassword := ""
-
-	// Check if options were provided
-	if len(options) > 0 {
-		if val, ok := options[0].(bool); ok {
-			useSudo = val
-		}
-	}
-	if len(options) > 1 {
-		if val, ok := options[1].(string); ok {
-			sudoPassword = val
-		}
-	}
-
-	return h.runCommandInternal(cmd, useSudo, sudoPassword)
+func (h UnixHost) RunCommand(cmd string, options CommandOptions) (string, error) {
+	return h.runCommandInternal(cmd, options.UseSudo, options.SudoPassword)
 }
 
 // CopyFile copies a file from the local path to the remote path on the host.
@@ -303,16 +318,14 @@ func (h UnixHost) CopyFile(localPath string, remotePath string) error {
 	return nil
 }
 
-// runCommandInternal executes the given command on the host.
-// If useSudo is true, it runs the command with superuser privileges.
 func (h UnixHost) runCommandInternal(cmd string, useSudo bool, sudoPassword string) (string, error) {
 	if useSudo {
-		log.Printf("Using sudo for command '%s' on host '%s'\n", cmd, h.Hostname())
-		cmd = "sudo -S " + cmd // -S option makes sudo read password from standard input
+		log.Printf("Using sudo for command '%s' on host '%s'", cmd, h.Hostname())
+		cmd = "sudo -S " + cmd
 		sudoPassword = h.SudoPassword
 	}
 
-	log.Printf("Running command '%s' on host '%s' with user '%s'\n", cmd, h.Hostname(), h.User)
+	log.Printf("Running command '%s' on host '%s' with user '%s'", cmd, h.Hostname(), h.User)
 
 	if h.isLocal() {
 		return h.runLocalCommand(cmd, useSudo, sudoPassword)

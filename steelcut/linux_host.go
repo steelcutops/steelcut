@@ -72,7 +72,7 @@ func (h LinuxHost) CheckUpdates() ([]Update, error) {
 
 // RunCommand runs the given command on the Linux host and returns the output.
 func (h LinuxHost) RunCommand(cmd string) (string, error) {
-	return h.UnixHost.RunCommand(cmd)
+	return h.UnixHost.RunCommand(cmd, CommandOptions{})
 }
 
 // CPUUsage calculates the CPU usage as a percentage on the Linux host.

@@ -53,7 +53,7 @@ func (h MacOSHost) CheckUpdates() ([]Update, error) {
 }
 
 func (h MacOSHost) RunCommand(cmd string) (string, error) {
-	return h.UnixHost.RunCommand(cmd)
+	return h.UnixHost.RunCommand(cmd, CommandOptions{})
 }
 
 // CPUUsage retrieves the CPU usage for the macOS host.

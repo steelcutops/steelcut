@@ -17,6 +17,8 @@ type UnixHost struct {
 	SSHClient     SSHClient
 	HostString    string
 	FileManager   FileManager
+	Executor      CommandExecutor
+	PkgManager    PackageManager
 }
 
 // Hostname returns the host string (e.g., IP or domain name) for the Unix host.

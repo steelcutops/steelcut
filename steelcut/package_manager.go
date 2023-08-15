@@ -6,10 +6,6 @@ import (
 	"strings"
 )
 
-type CommandExecutor interface {
-	RunCommand(command string, useSudo bool) (string, error)
-}
-
 // PackageManager interface defines the methods that package manager implementations must provide.
 type PackageManager interface {
 	ListPackages(*UnixHost) ([]string, error)
