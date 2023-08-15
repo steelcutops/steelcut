@@ -204,16 +204,16 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 		osRelease, _ := linuxHost.RunCommand("cat /etc/os-release")
 		if strings.Contains(osRelease, "ID=ubuntu") || strings.Contains(osRelease, "ID=debian") {
 			log.Println("Detected Debian/Ubuntu")
-			linuxHost.PackageManager = AptPackageManager{} // Assign PackageManager
+			linuxHost.PackageManager = AptPackageManager{}
 		} else {
 			// Assume Red Hat/CentOS/Fedora if not Debian/Ubuntu.
 			log.Println("Detected Red Hat/CentOS/Fedora")
-			linuxHost.PackageManager = YumPackageManager{} // Assign PackageManager
+			linuxHost.PackageManager = YumPackageManager{}
 		}
 		return linuxHost, nil
 	case "Darwin":
 		macHost := &MacOSHost{UnixHost: unixHost}
-		macHost.PackageManager = BrewPackageManager{} // Assign PackageManager
+		macHost.PackageManager = BrewPackageManager{}
 		return macHost, nil
 	default:
 		return nil, fmt.Errorf("unsupported operating system: %s", unixHost.OS)
