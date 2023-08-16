@@ -3,6 +3,11 @@ build:
 	go build -o steelcut
 	@echo "Build complete!"
 
+docs:
+	@echo "Generating documentation..."
+	godoc -http=:6060
+	@echo "Documentation server started!"
+
 test:
 	@echo "Running tests..."
 	go test -v ./...
@@ -16,11 +21,11 @@ cover:
 run:
 	@echo "Running the project..."
 	go run main.go
-	q@echo "Execution complete!"
+	@echo "Execution complete!"
 
 clean:
 	@echo "Cleaning up..."
-	rm -f steelcut
+	rm -f steelcut/steelcut
 	@echo "Clean up complete!"
 
 vet:
