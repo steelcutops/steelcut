@@ -1,36 +1,47 @@
 build:
 	@echo "Building the project..."
-	@go build -o steelcut
+	go build -o steelcut
 	@echo "Build complete!"
 
 test:
 	@echo "Running tests..."
-	@go test -v ./...
+	go test -v ./...
 	@echo "Tests complete!"
 
 cover:
 	@echo "Measuring test coverage..."
-	@go test -cover ./...
+	go test -cover ./...
 	@echo "Coverage complete!"
 
 run:
 	@echo "Running the project..."
-	@go run main.go
-	@echo "Execution complete!"
+	go run main.go
+	q@echo "Execution complete!"
 
 clean:
 	@echo "Cleaning up..."
-	@rm steelcut/steelcut
+	rm -f steelcut
 	@echo "Clean up complete!"
 
 vet:
 	@echo "Running go vet..."
-	@go vet ./...
+	go vet ./...
 	@echo "Vet complete!"
+
+lint:
+	@echo "Running linter..."
+	golint ./...
+	@echo "Linting complete!"
 
 fmt:
 	@echo "Running gofmt on all .go files..."
-	@find . -name '*.go' -exec gofmt -w {} \;
+	find . -name '*.go' -exec gofmt -w {} \;
 	@echo "Done formatting!"
 
-.PHONY: fmt build test run clean vet lint
+mod:
+	@echo "Tidying and verifying module dependencies..."
+	go mod tidy
+	go mod verify
+	@echo "Dependencies are tidy and verified!"
+
+.PHONY: fmt build test run clean vet lint mod
