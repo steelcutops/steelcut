@@ -5,7 +5,7 @@ build:
 
 test:
 	@echo "Running tests..."
-	@go test ./...
+	@go test -v ./...
 	@echo "Tests complete!"
 
 cover:
