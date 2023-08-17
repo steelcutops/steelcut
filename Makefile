@@ -43,7 +43,7 @@ fmt:
 	find . -name '*.go' -exec gofmt -w {} \;
 	@echo "Done formatting!"
 
-mod:
+tidy:
 	@echo "Tidying and verifying module dependencies..."
 	go mod tidy
 	go mod verify
