@@ -1,11 +1,74 @@
 package steelcut
 
 import (
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"golang.org/x/crypto/ssh"
 )
 
+type MockCommandExecutor struct {
+	mock.Mock
+	commandOutput string
+	err           error
+}
+
+func (m *MockCommandExecutor) RunCommand(command string, useSudo bool) (string, error) {
+	called := m.MethodCalled("RunCommand", command, useSudo)
+	if len(called) > 1 {
+		return strings.TrimSpace(called.String(0)), called.Error(1) // Trim output
+	}
+	return strings.TrimSpace(m.commandOutput), m.err // Trim output
+}
+
+func (m *MockCommandExecutor) SetMockResponse(output string, err error) {
+	m.commandOutput = output
+	m.err = err
+}
+
+type MockOSDetector struct {
+	OS  string
+	Err error
+}
+
+func (m MockOSDetector) DetermineOS(host *UnixHost) (string, error) {
+	return m.OS, m.Err
+}
+
+func TestNewHost_InvalidHostname(t *testing.T) {
+	_, err := NewHost("!@#")
+	if err == nil {
+		t.Fatalf("Expected an error for invalid hostname, got nil")
+	}
+}
+
+type MockSSHClient struct {
+	dialErr error
+}
+
+func (m *MockSSHClient) Dial(network, addr string, config *ssh.ClientConfig, timeout time.Duration) (*ssh.Client, error) {
+	return nil, m.dialErr
+}
+
+func TestRunCommand(t *testing.T) {
+	t.Run("Successful run local command", func(t *testing.T) {
+		host, _ := NewHost("localhost", WithCommandExecutor(&MockCommandExecutor{
+			commandOutput: "Success",
+			err:           nil,
+		}))
+
+		output, err := host.RunCommand("echo Success")
+		assert.NoError(t, err)
+		assert.Equal(t, "Success", strings.TrimSpace(output))
+
+	})
+}
+
 func TestNewHost(t *testing.T) {
-	host, err := NewHost("localhost", WithOS("Linux"))
+	host, err := NewHost("localhost", WithOSDetector(MockOSDetector{OS: "Linux"}))
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -21,7 +84,7 @@ func TestNewHost(t *testing.T) {
 }
 
 func TestNewHost_MacOS(t *testing.T) {
-	host, err := NewHost("localhost", WithOS("Darwin"))
+	host, err := NewHost("localhost", WithOSDetector(MockOSDetector{OS: "Darwin"}))
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -37,7 +100,7 @@ func TestNewHost_MacOS(t *testing.T) {
 }
 
 func TestNewHost_InvalidOS(t *testing.T) {
-	_, err := NewHost("localhost", WithOS("UnsupportedOS"))
+	_, err := NewHost("localhost", WithOSDetector(MockOSDetector{OS: "UnsupportedOS"}))
 	if err == nil {
 		t.Fatalf("Expected an error for unsupported OS, got nil")
 	}
@@ -48,17 +111,15 @@ func TestNewHost_InvalidOS(t *testing.T) {
 	}
 }
 
-// Test without providing any options.
 func TestNewHost_NoOptions(t *testing.T) {
-	_, err := NewHost("")
+	_, err := NewHost("", WithOSDetector(MockOSDetector{OS: ""}))
 	if err == nil {
 		t.Fatalf("Expected an error for no options, got nil")
 	}
 }
 
-// Test with multiple valid options.
 func TestNewHost_MultipleOptions(t *testing.T) {
-	host, err := NewHost("localhost", WithOS("Linux"))
+	host, err := NewHost("localhost", WithOSDetector(MockOSDetector{OS: "Linux"}))
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -70,14 +131,5 @@ func TestNewHost_MultipleOptions(t *testing.T) {
 
 	if linuxHost.Hostname() != "localhost" {
 		t.Errorf("Expected hostname to be 'localhost', got: %s", linuxHost.Hostname())
-	}
-
-}
-
-// Test with invalid hostname.
-func TestNewHost_InvalidHostname(t *testing.T) {
-	_, err := NewHost("!@#")
-	if err == nil {
-		t.Fatalf("Expected an error for invalid hostname, got nil")
 	}
 }

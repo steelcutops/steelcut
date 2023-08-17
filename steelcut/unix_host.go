@@ -19,6 +19,7 @@ type UnixHost struct {
 	FileManager   FileManager
 	Executor      CommandExecutor
 	PkgManager    PackageManager
+	Detector      OSDetector
 }
 
 // Hostname returns the host string (e.g., IP or domain name) for the Unix host.

@@ -22,6 +22,23 @@ type CommandExecutor interface {
 	RunCommand(command string, useSudo bool) (string, error)
 }
 
+type OSDetector interface {
+	DetermineOS(host *UnixHost) (string, error)
+}
+
+type DefaultOSDetector struct{}
+
+func (d DefaultOSDetector) DetermineOS(host *UnixHost) (string, error) {
+	output, err := host.RunCommand("uname", CommandOptions{
+		UseSudo: false,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(output), nil
+}
+
 // SSHClient defines an interface for dialing and establishing an SSH connection.
 type SSHClient interface {
 	Dial(network, addr string, config *ssh.ClientConfig, timeout time.Duration) (*ssh.Client, error)
@@ -142,15 +159,10 @@ func WithCommandExecutor(executor CommandExecutor) HostOption {
 	}
 }
 
-func determineOS(host *UnixHost) (string, error) {
-	output, err := host.RunCommand("uname", CommandOptions{
-		UseSudo: false,
-	})
-	if err != nil {
-		return "", err
+func WithOSDetector(detector OSDetector) HostOption {
+	return func(host *UnixHost) {
+		host.Detector = detector
 	}
-
-	return strings.TrimSpace(output), nil
 }
 
 func (h UnixHost) IsReachable() error {
@@ -212,9 +224,14 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 		unixHost.User = currentUser.Username
 	}
 
+	if unixHost.Detector == nil {
+		unixHost.Detector = DefaultOSDetector{}
+	}
+	log.Printf("OS detector: %T\n", unixHost.Detector)
+
 	// If the OS has not been specified, determine it.
 	if unixHost.OS == "" {
-		os, err := determineOS(unixHost)
+		os, err := unixHost.Detector.DetermineOS(unixHost)
 		if err != nil {
 			return nil, err
 		}
@@ -231,7 +248,11 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 			unixHost.Executor = linuxHost.Executor
 		}
 
-		osRelease, _ := linuxHost.RunCommand("cat /etc/os-release")
+		osRelease, err := linuxHost.RunCommand("cat /etc/os-release")
+		if err != nil {
+			return nil, fmt.Errorf("failed to determine OS details: %v", err)
+		}
+
 		if strings.Contains(osRelease, "ID=ubuntu") || strings.Contains(osRelease, "ID=debian") {
 			log.Println("Detected Debian/Ubuntu")
 			linuxHost.PackageManager = AptPackageManager{Executor: unixHost.Executor}
@@ -325,14 +346,6 @@ func (h UnixHost) CopyFile(localPath string, remotePath string) error {
 }
 
 func (h UnixHost) runCommandInternal(cmd string, useSudo bool, sudoPassword string) (string, error) {
-	if useSudo {
-		log.Printf("Using sudo for command '%s' on host '%s'", cmd, h.Hostname())
-		cmd = "sudo -S " + cmd
-		sudoPassword = h.SudoPassword
-	}
-
-	log.Printf("Running command '%s' on host '%s' with user '%s'", cmd, h.Hostname(), h.User)
-
 	if h.isLocal() {
 		return h.runLocalCommand(cmd, useSudo, sudoPassword)
 	}
@@ -391,7 +404,7 @@ func (h UnixHost) runRemoteCommand(cmd string, useSudo bool, sudoPassword string
 
 	timeout := 5 * time.Second // You can change this value
 	client, err := h.SSHClient.Dial("tcp", h.Hostname()+":22", config, timeout)
-	if err != nil {
+	if err != nil || client == nil {
 		return "", err
 	}
 	defer client.Close()

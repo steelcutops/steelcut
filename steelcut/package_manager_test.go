@@ -6,17 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
-
-type MockCommandExecutor struct {
-	mock.Mock
-}
-
-func (m *MockCommandExecutor) RunCommand(command string, asRoot bool) (string, error) {
-	args := m.Called(command, asRoot)
-	return args.String(0), args.Error(1)
-}
 
 func TestYumPackageManager(t *testing.T) {
 	mockExecutor := new(MockCommandExecutor)
@@ -31,7 +21,7 @@ func TestYumPackageManager(t *testing.T) {
 	mockExecutor.On("RunCommand", "yum list installed", false).Return("package1\npackage2\n", nil)
 	packages, err := packageManager.ListPackages(nil)
 	assert.Nil(t, err)
-	assert.Equal(t, []string{"package1", "package2", ""}, packages)
+	assert.Equal(t, []string{"package1", "package2"}, packages)
 
 	// Test: AddPackage
 	mockExecutor.On("RunCommand", "yum install -y package3", true).Return("", nil)
@@ -52,7 +42,7 @@ func TestYumPackageManager(t *testing.T) {
 	mockExecutor.On("RunCommand", "yum check-update", true).Return("package1 update\npackage2 update\n", nil)
 	updates, err := packageManager.CheckOSUpdates(nil)
 	assert.Nil(t, err)
-	assert.Equal(t, []string{"package1 update", "package2 update", ""}, updates)
+	assert.Equal(t, []string{"package1 update", "package2 update"}, updates)
 
 	// Test: UpgradeAll
 	mockExecutor.On("RunCommand", "yum update -y", true).Return("package1 2.0\npackage2 3.0\n", nil)
@@ -84,7 +74,7 @@ func TestAptPackageManager(t *testing.T) {
 	mockExecutor.On("RunCommand", "apt list --installed", false).Return("package1\npackage2\n", nil)
 	packages, err := packageManager.ListPackages(nil)
 	assert.Nil(t, err)
-	assert.Equal(t, []string{"package1", "package2", ""}, packages)
+	assert.Equal(t, []string{"package1", "package2"}, packages)
 
 	// Test: AddPackage
 	mockExecutor.On("RunCommand", "apt install -y package3", true).Return("", nil)
@@ -106,7 +96,7 @@ func TestAptPackageManager(t *testing.T) {
 	mockExecutor.On("RunCommand", "apt list --upgradable", true).Return("package1 update\npackage2 update\n", nil)
 	updates, err := packageManager.CheckOSUpdates(nil)
 	assert.Nil(t, err)
-	assert.Equal(t, []string{"package1 update", "package2 update", ""}, updates)
+	assert.Equal(t, []string{"package1 update", "package2 update"}, updates)
 
 }
 
@@ -123,7 +113,7 @@ func TestBrewPackageManager(t *testing.T) {
 	mockExecutor.On("RunCommand", "brew list --version", false).Return("package1 1.0\npackage2 2.0\n", nil)
 	packages, err := packageManager.ListPackages(nil)
 	assert.Nil(t, err)
-	assert.Equal(t, []string{"package1 1.0", "package2 2.0", ""}, packages)
+	assert.Equal(t, []string{"package1 1.0", "package2 2.0"}, packages)
 
 	// Test: AddPackage
 	mockExecutor.On("RunCommand", "brew install package3", false).Return("", nil)
@@ -144,7 +134,7 @@ func TestBrewPackageManager(t *testing.T) {
 	mockExecutor.On("RunCommand", "brew outdated", false).Return("package1 2.0\npackage2 3.0\n", nil)
 	updates, err := packageManager.CheckOSUpdates(nil)
 	assert.Nil(t, err)
-	assert.Equal(t, []string{"package1 2.0", "package2 3.0", ""}, updates)
+	assert.Equal(t, []string{"package1 2.0", "package2 3.0"}, updates)
 
 	// Test: UpgradeAll
 	mockExecutor.On("RunCommand", "brew upgrade", false).Return("package1 2.0\npackage2 3.0\n", nil)
