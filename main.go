@@ -38,6 +38,7 @@ type flags struct {
 	LogFileName        string
 	MemoryThreshold    float64
 	Monitor            bool
+	MonitorInterval    time.Duration
 	PasswordPrompt     bool
 	ScriptPath         string
 	SudoPasswordPrompt bool
@@ -85,6 +86,7 @@ func parseFlags() *flags {
 	flag.BoolVar(&f.KeyPassPrompt, "keypass", false, "Passphrase for decrypting SSH keys")
 	flag.BoolVar(&f.ListPackages, "list", false, "List all packages")
 	flag.BoolVar(&f.ListUpgradable, "upgradable", false, "List all upgradable packages")
+	flag.DurationVar(&f.MonitorInterval, "monitor-interval", 5*time.Second, "Interval between monitoring checks")
 	flag.BoolVar(&f.Monitor, "monitor", false, "Enable host monitoring")
 	flag.BoolVar(&f.PasswordPrompt, "password", false, "Use a password for SSH connection")
 	flag.BoolVar(&f.SudoPasswordPrompt, "sudo-password", false, "Prompt for sudo password")
@@ -129,7 +131,7 @@ func monitorHosts(hg *steelcut.HostGroup, f *flags) {
 		}
 		hg.RUnlock()
 
-		time.Sleep(5 * time.Second) // Delay between monitoring checks
+		time.Sleep(f.MonitorInterval) // Delay between monitoring checks
 	}
 }
 
