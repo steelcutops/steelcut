@@ -13,6 +13,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -20,6 +21,11 @@ import (
 
 type CommandExecutor interface {
 	RunCommand(command string, useSudo bool) (string, error)
+}
+
+type commandResult struct {
+	output []byte
+	err    error
 }
 
 type OSDetector interface {
@@ -196,7 +202,7 @@ func (h UnixHost) sshable() error {
 		return err
 	}
 
-	timeout := 5 * time.Second // You can change this value
+	timeout := 5 * time.Second
 	client, err := h.SSHClient.Dial("tcp", h.Hostname()+":22", config, timeout)
 	if err != nil {
 		return fmt.Errorf("SSH test failed: %v", err)
@@ -312,7 +318,7 @@ func (h UnixHost) CopyFile(localPath string, remotePath string) error {
 	}
 
 	// Dial SSH connection
-	timeout := 5 * time.Second // You can change this value
+	timeout := 5 * time.Second
 	client, err := h.SSHClient.Dial("tcp", h.Hostname()+":22", config, timeout)
 	if err != nil {
 		return err
@@ -362,7 +368,10 @@ func (h UnixHost) runLocalCommand(cmd string, useSudo bool, sudoPassword string)
 	head := parts[0]
 	parts = parts[1:]
 
-	if useSudo && sudoPassword != "" {
+	if useSudo {
+		if sudoPassword == "" {
+			return "", errors.New("sudo: password is required but not provided")
+		}
 		log.Println("Providing sudo password through stdin for local command")
 		sudoCmd := append([]string{"-S", head}, parts...)
 		command := exec.Command("sudo", sudoCmd...)
@@ -402,7 +411,7 @@ func (h UnixHost) runRemoteCommand(cmd string, useSudo bool, sudoPassword string
 		return "", err
 	}
 
-	timeout := 5 * time.Second // You can change this value
+	timeout := 5 * time.Second
 	client, err := h.SSHClient.Dial("tcp", h.Hostname()+":22", config, timeout)
 	if err != nil || client == nil {
 		return "", err
@@ -415,25 +424,41 @@ func (h UnixHost) runRemoteCommand(cmd string, useSudo bool, sudoPassword string
 	}
 	defer session.Close()
 
-	if useSudo && sudoPassword != "" {
+	if useSudo {
+		if sudoPassword == "" {
+			return "", errors.New("sudo: password is required but not provided")
+		}
 		session.Stdin = strings.NewReader(sudoPassword + "\n") // Write password to stdin
 	}
 
 	// Handling command timeout
-	outputCh := make(chan []byte)
-	errCh := make(chan error)
+	outputCh := make(chan commandResult)
 	go func() {
 		output, err := session.CombinedOutput(cmd)
-		if err != nil {
-			errCh <- err
-			return
-		}
-		outputCh <- output
+		outputCh <- commandResult{output: output, err: err}
 	}()
 
 	select {
-	case output := <-outputCh:
-		outputStr := string(output)
+	case result := <-outputCh:
+		outputStr := string(result.output)
+
+		if result.err != nil {
+			if exitError, ok := result.err.(*exec.ExitError); ok {
+				status := exitError.Sys().(syscall.WaitStatus)
+				errorMsg := fmt.Sprintf("Command '%s' over SSH failed with status %d. Output: %s", cmd, status.ExitStatus(), outputStr)
+
+				switch status.ExitStatus() {
+				case 100:
+					log.Printf("Status 100 (commonly indicates a package manager error): %s", errorMsg)
+				default:
+					log.Printf("%s", errorMsg)
+				}
+				return outputStr, errors.New(errorMsg) // Ensure you're returning the detailed error
+			} else {
+				log.Printf("Error running command '%s' over SSH: %v", cmd, result.err)
+				return outputStr, result.err
+			}
+		}
 
 		// Check for sudo-related errors
 		if strings.Contains(outputStr, "incorrect password") {
@@ -444,13 +469,11 @@ func (h UnixHost) runRemoteCommand(cmd string, useSudo bool, sudoPassword string
 		}
 		return outputStr, nil
 
-	case err := <-errCh:
-		log.Printf("Error running command over SSH with sudo: %v\n", err)
-		return "", err
-
 	case <-time.After(timeout):
+		log.Printf("Command '%s' over SSH timed out after %v.", cmd, timeout)
 		return "", errors.New("command timed out")
 	}
+
 }
 
 func (h UnixHost) getSSHConfig() (*ssh.ClientConfig, error) {
