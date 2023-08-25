@@ -16,8 +16,8 @@ type MockCommandExecutor struct {
 	err           error
 }
 
-func (m *MockCommandExecutor) RunCommand(command string, useSudo bool) (string, error) {
-	called := m.MethodCalled("RunCommand", command, useSudo)
+func (m *MockCommandExecutor) RunCommand(command string, options CommandOptions) (string, error) {
+	called := m.MethodCalled("RunCommand", command, options.UseSudo)
 	if len(called) > 1 {
 		return strings.TrimSpace(called.String(0)), called.Error(1) // Trim output
 	}
@@ -60,7 +60,8 @@ func TestRunCommand(t *testing.T) {
 			err:           nil,
 		}))
 
-		output, err := host.RunCommand("echo Success")
+		commandOptions := CommandOptions{UseSudo: false}
+		output, err := host.RunCommand("echo Success", commandOptions)
 		assert.NoError(t, err)
 		assert.Equal(t, "Success", strings.TrimSpace(output))
 
@@ -68,7 +69,7 @@ func TestRunCommand(t *testing.T) {
 }
 
 func TestNewHost(t *testing.T) {
-	host, err := NewHost("localhost", WithOSDetector(MockOSDetector{OS: "Linux"}))
+	host, err := NewHost("localhost", WithOSDetector(MockOSDetector{OS: "Linux_RedHat"}))
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -119,7 +120,7 @@ func TestNewHost_NoOptions(t *testing.T) {
 }
 
 func TestNewHost_MultipleOptions(t *testing.T) {
-	host, err := NewHost("localhost", WithOSDetector(MockOSDetector{OS: "Linux"}))
+	host, err := NewHost("localhost", WithOSDetector(MockOSDetector{OS: "Linux_Debian"}))
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}

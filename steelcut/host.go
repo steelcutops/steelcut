@@ -20,7 +20,7 @@ import (
 )
 
 type CommandExecutor interface {
-	RunCommand(command string, useSudo bool) (string, error)
+	RunCommand(command string, options CommandOptions) (string, error)
 }
 
 type commandResult struct {
@@ -42,7 +42,22 @@ func (d DefaultOSDetector) DetermineOS(host *UnixHost) (string, error) {
 		return "", err
 	}
 
-	return strings.TrimSpace(output), nil
+	osType := strings.TrimSpace(output)
+
+	if osType == "Linux" {
+		osRelease, err := host.RunCommand("cat /etc/os-release", CommandOptions{UseSudo: false})
+		if err != nil {
+			return "", err
+		}
+
+		if strings.Contains(osRelease, "ID=ubuntu") || strings.Contains(osRelease, "ID=debian") {
+			return "Linux_Ubuntu", nil
+		} else {
+			return "Linux_RedHat", nil // Adjust this as per the distributions you want to handle.
+		}
+	}
+
+	return osType, nil
 }
 
 // SSHClient defines an interface for dialing and establishing an SSH connection.
@@ -70,11 +85,30 @@ func (c RealSSHClient) Dial(network, addr string, config *ssh.ClientConfig, time
 }
 
 type DefaultCommandExecutor struct {
-	Host Host
+	Host    Host
+	Options CommandOptions
 }
 
-func (dce DefaultCommandExecutor) RunCommand(command string, useSudo bool) (string, error) {
-	return dce.Host.RunCommand(command)
+func (dce DefaultCommandExecutor) RunCommand(command string, options CommandOptions) (string, error) {
+	if options == (CommandOptions{}) { // if no specific options provided
+		options = dce.Options // use the defaults
+	}
+
+	return dce.RunCommandWithOverride(command, options)
+}
+
+func (dce DefaultCommandExecutor) RunCommandWithOverride(command string, overrideOptions CommandOptions) (string, error) {
+	finalOptions := dce.Options // Start with default options.
+
+	// Override with provided options if necessary.
+	if overrideOptions.UseSudo {
+		finalOptions.UseSudo = overrideOptions.UseSudo
+	}
+	if overrideOptions.SudoPassword != "" {
+		finalOptions.SudoPassword = overrideOptions.SudoPassword
+	}
+
+	return dce.Host.RunCommand(command, finalOptions)
 }
 
 type CommandOptions struct {
@@ -99,7 +133,7 @@ type Host interface {
 	ListPackages() ([]string, error)
 	Reboot() error
 	RemovePackage(pkg string) error
-	RunCommand(cmd string) (string, error)
+	RunCommand(cmd string, options CommandOptions) (string, error)
 	Shutdown() error
 	SystemReporter
 	UpgradeAllPackages() ([]Update, error)
@@ -202,7 +236,7 @@ func (h UnixHost) sshable() error {
 		return err
 	}
 
-	timeout := 5 * time.Second
+	timeout := 60 * time.Second
 	client, err := h.SSHClient.Dial("tcp", h.Hostname()+":22", config, timeout)
 	if err != nil {
 		return fmt.Errorf("SSH test failed: %v", err)
@@ -244,43 +278,30 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 		unixHost.OS = os
 	}
 
-	switch unixHost.OS {
-	case "Linux":
-		linuxHost := &LinuxHost{UnixHost: unixHost}
+	linuxHost := &LinuxHost{UnixHost: unixHost}
+	macHost := &MacOSHost{UnixHost: unixHost}
 
-		// Set the executor if it's nil AFTER creating the LinuxHost.
-		if unixHost.Executor == nil {
-			linuxHost.Executor = DefaultCommandExecutor{Host: linuxHost}
-			unixHost.Executor = linuxHost.Executor
-		}
-
-		osRelease, err := linuxHost.RunCommand("cat /etc/os-release")
-		if err != nil {
-			return nil, fmt.Errorf("failed to determine OS details: %v", err)
-		}
-
-		if strings.Contains(osRelease, "ID=ubuntu") || strings.Contains(osRelease, "ID=debian") {
-			log.Println("Detected Debian/Ubuntu")
-			linuxHost.PackageManager = AptPackageManager{Executor: unixHost.Executor}
-		} else {
-			log.Println("Detected Red Hat/CentOS/Fedora")
-			linuxHost.PackageManager = YumPackageManager{Executor: unixHost.Executor}
-		}
+	switch {
+	case strings.HasPrefix(unixHost.OS, "Linux_Ubuntu") || strings.HasPrefix(unixHost.OS, "Linux_Debian"):
+		log.Println("Detected Debian/Ubuntu")
+		linuxHost.PackageManager = AptPackageManager{Executor: unixHost.Executor}
 		return linuxHost, nil
-	case "Darwin":
-		macHost := &MacOSHost{UnixHost: unixHost}
-
+	case strings.HasPrefix(unixHost.OS, "Linux_RedHat") || strings.HasPrefix(unixHost.OS, "Linux_CentOS") || strings.HasPrefix(unixHost.OS, "Linux_Fedora"):
+		log.Println("Detected Red Hat/CentOS/Fedora")
+		linuxHost.PackageManager = YumPackageManager{Executor: unixHost.Executor}
+		return linuxHost, nil
+	case unixHost.OS == "Darwin":
 		// Set the executor if it's nil AFTER creating the MacOSHost.
 		if unixHost.Executor == nil {
-			macHost.Executor = DefaultCommandExecutor{Host: macHost}
+			macHost.Executor = macHost // I think you might have intended something different here?
 			unixHost.Executor = macHost.Executor
 		}
-
 		macHost.PackageManager = BrewPackageManager{Executor: unixHost.Executor}
 		return macHost, nil
 	default:
 		return nil, fmt.Errorf("unsupported operating system: %s", unixHost.OS)
 	}
+
 }
 
 // RunCommand executes the specified command on the host, either locally or remotely via SSH.
@@ -318,7 +339,7 @@ func (h UnixHost) CopyFile(localPath string, remotePath string) error {
 	}
 
 	// Dial SSH connection
-	timeout := 5 * time.Second
+	timeout := 30 * time.Second
 	client, err := h.SSHClient.Dial("tcp", h.Hostname()+":22", config, timeout)
 	if err != nil {
 		return err
@@ -403,6 +424,7 @@ func (h UnixHost) runLocalCommand(cmd string, useSudo bool, sudoPassword string)
 }
 
 func (h UnixHost) runRemoteCommand(cmd string, useSudo bool, sudoPassword string) (string, error) {
+	log.Printf("Value of useSudo: %v", useSudo)
 	if h.SSHClient == nil {
 		return "", errors.New("SSHClient is not initialized")
 	}
@@ -411,7 +433,7 @@ func (h UnixHost) runRemoteCommand(cmd string, useSudo bool, sudoPassword string
 		return "", err
 	}
 
-	timeout := 5 * time.Second
+	timeout := 600 * time.Second
 	client, err := h.SSHClient.Dial("tcp", h.Hostname()+":22", config, timeout)
 	if err != nil || client == nil {
 		return "", err
@@ -428,6 +450,8 @@ func (h UnixHost) runRemoteCommand(cmd string, useSudo bool, sudoPassword string
 		if sudoPassword == "" {
 			return "", errors.New("sudo: password is required but not provided")
 		}
+		cmd = "sudo -S " + cmd
+		log.Println("Providing sudo password through stdin for remote command")
 		session.Stdin = strings.NewReader(sudoPassword + "\n") // Write password to stdin
 	}
 

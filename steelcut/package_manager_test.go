@@ -60,9 +60,8 @@ func TestYumPackageManager(t *testing.T) {
 	}, upgrades)
 
 }
-
 func TestAptPackageManager(t *testing.T) {
-	mockExecutor := new(MockCommandExecutor)
+	mockExecutor := &MockCommandExecutor{}
 	logger := log.New(os.Stdout, "test: ", log.Lshortfile)
 
 	packageManager := AptPackageManager{
@@ -71,10 +70,10 @@ func TestAptPackageManager(t *testing.T) {
 	}
 
 	// Test: ListPackages
-	mockExecutor.On("RunCommand", "apt list --installed", false).Return("package1\npackage2\n", nil)
+	mockExecutor.On("RunCommand", "apt list --installed", false).Return("package1/now 1.0 amd64\npackage2/now 2.0 amd64\n", nil)
 	packages, err := packageManager.ListPackages(nil)
 	assert.Nil(t, err)
-	assert.Equal(t, []string{"package1", "package2"}, packages)
+	assert.Equal(t, []string{"package1/now 1.0 amd64", "package2/now 2.0 amd64"}, packages)
 
 	// Test: AddPackage
 	mockExecutor.On("RunCommand", "apt install -y package3", true).Return("", nil)
@@ -93,10 +92,10 @@ func TestAptPackageManager(t *testing.T) {
 
 	// Test: CheckOSUpdates
 	mockExecutor.On("RunCommand", "apt update", true).Return("", nil)
-	mockExecutor.On("RunCommand", "apt list --upgradable", true).Return("package1 update\npackage2 update\n", nil)
+	mockExecutor.On("RunCommand", "apt list --upgradable", false).Return("package1/xenial 2.0 amd64 [upgradable from: 1.0]\npackage2/xenial 3.0 amd64 [upgradable from: 2.0]", nil)
 	updates, err := packageManager.CheckOSUpdates(nil)
 	assert.Nil(t, err)
-	assert.Equal(t, []string{"package1 update", "package2 update"}, updates)
+	assert.Equal(t, []string{"package1/xenial 2.0 amd64 [upgradable from: 1.0]", "package2/xenial 3.0 amd64 [upgradable from: 2.0]"}, updates)
 
 }
 

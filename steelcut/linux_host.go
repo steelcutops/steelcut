@@ -71,13 +71,14 @@ func (h LinuxHost) CheckUpdates() ([]Update, error) {
 }
 
 // RunCommand runs the given command on the Linux host and returns the output.
-func (h LinuxHost) RunCommand(cmd string) (string, error) {
-	return h.UnixHost.RunCommand(cmd, CommandOptions{})
+func (h LinuxHost) RunCommand(cmd string, commandOptions CommandOptions) (string, error) {
+	return h.UnixHost.RunCommand(cmd, commandOptions)
 }
 
 // CPUUsage calculates the CPU usage as a percentage on the Linux host.
 func (h LinuxHost) CPUUsage() (float64, error) {
-	output, err := h.RunCommand("cat /proc/stat")
+	commandOptions := CommandOptions{UseSudo: false}
+	output, err := h.RunCommand("cat /proc/stat", commandOptions)
 	if err != nil {
 		return 0, err
 	}
@@ -125,7 +126,8 @@ func (h LinuxHost) CPUUsage() (float64, error) {
 
 // MemoryUsage calculates the memory usage as a percentage on the Linux host.
 func (h LinuxHost) MemoryUsage() (float64, error) {
-	output, err := h.RunCommand("cat /proc/meminfo")
+	commandOptions := CommandOptions{UseSudo: false}
+	output, err := h.RunCommand("cat /proc/meminfo", commandOptions)
 	if err != nil {
 		return 0, err
 	}
@@ -157,7 +159,8 @@ func (h LinuxHost) MemoryUsage() (float64, error) {
 
 // DiskUsage calculates the disk usage as a percentage for the root directory on the Linux host.
 func (h LinuxHost) DiskUsage() (float64, error) {
-	output, err := h.RunCommand("df --output=pcent /")
+	commandOptions := CommandOptions{UseSudo: false}
+	output, err := h.RunCommand("df --output=pcent /", commandOptions)
 	if err != nil {
 		return 0, err
 	}
@@ -179,7 +182,8 @@ func (h LinuxHost) DiskUsage() (float64, error) {
 
 // RunningProcesses retrieves a list of running processes on the Linux host.
 func (h LinuxHost) RunningProcesses() ([]string, error) {
-	output, err := h.RunCommand("ps aux")
+	commandOptions := CommandOptions{UseSudo: false}
+	output, err := h.RunCommand("ps aux", commandOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -191,13 +195,15 @@ func (h LinuxHost) RunningProcesses() ([]string, error) {
 
 // Reboot restarts the Linux host.
 func (h LinuxHost) Reboot() error {
-	_, err := h.RunCommand("sudo reboot")
+	commandOptions := CommandOptions{UseSudo: true}
+	_, err := h.RunCommand("reboot", commandOptions)
 	return err
 }
 
 // Shutdown powers off the Linux host.
 func (h LinuxHost) Shutdown() error {
-	_, err := h.RunCommand("sudo shutdown -h now")
+	commandOptions := CommandOptions{UseSudo: true}
+	_, err := h.RunCommand("shutdown -h now", commandOptions)
 	return err
 }
 

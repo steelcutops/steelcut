@@ -28,7 +28,7 @@ type YumPackageManager struct {
 }
 
 func (pm YumPackageManager) ListPackages(host *UnixHost) ([]string, error) {
-	output, err := pm.Executor.RunCommand("yum list installed", false)
+	output, err := pm.Executor.RunCommand("yum list installed", CommandOptions{UseSudo: false})
 	if err != nil {
 		return nil, err
 	}
@@ -36,23 +36,23 @@ func (pm YumPackageManager) ListPackages(host *UnixHost) ([]string, error) {
 }
 
 func (pm YumPackageManager) AddPackage(host *UnixHost, pkg string) error {
-	_, err := pm.Executor.RunCommand(fmt.Sprintf("yum install -y %s", pkg), true)
+	_, err := pm.Executor.RunCommand(fmt.Sprintf("yum install -y %s", pkg), CommandOptions{UseSudo: true})
 	return err
 }
 
 func (pm YumPackageManager) RemovePackage(host *UnixHost, pkg string) error {
-	_, err := pm.Executor.RunCommand(fmt.Sprintf("yum remove -y %s", pkg), true)
+	_, err := pm.Executor.RunCommand(fmt.Sprintf("yum remove -y %s", pkg), CommandOptions{UseSudo: true})
 	return err
 }
 
 func (pm YumPackageManager) UpgradePackage(host *UnixHost, pkg string) error {
-	_, err := pm.Executor.RunCommand(fmt.Sprintf("yum upgrade -y %s", pkg), true)
+	_, err := pm.Executor.RunCommand(fmt.Sprintf("yum upgrade -y %s", pkg), CommandOptions{UseSudo: true})
 	return err
 }
 
 func (pm YumPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	log.Print("Checking for YUM OS updates")
-	output, err := pm.Executor.RunCommand("yum check-update", true)
+	output, err := pm.Executor.RunCommand("yum check-update", CommandOptions{UseSudo: true})
 	if err != nil {
 		log.Printf("Error checking YUM updates: %v", err)
 		return nil, err
@@ -65,7 +65,7 @@ func (pm YumPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 
 // UpgradeAll upgrades all the packages to their latest versions.
 func (pm YumPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
-	output, err := pm.Executor.RunCommand("yum update -y", true)
+	output, err := pm.Executor.RunCommand("yum update -y", CommandOptions{UseSudo: true})
 	if err != nil {
 		return nil, fmt.Errorf("failed to upgrade all packages: %v, Output: %s", err, output)
 	}
@@ -80,7 +80,7 @@ type AptPackageManager struct {
 
 // ListPackages returns the installed packages.
 func (pm AptPackageManager) ListPackages(host *UnixHost) ([]string, error) {
-	output, err := pm.Executor.RunCommand("apt list --installed", false)
+	output, err := pm.Executor.RunCommand("apt list --installed", CommandOptions{UseSudo: false})
 	if err != nil {
 		return nil, err
 	}
@@ -91,25 +91,25 @@ func (pm AptPackageManager) ListPackages(host *UnixHost) ([]string, error) {
 
 // AddPackage adds a package to the host.
 func (pm AptPackageManager) AddPackage(host *UnixHost, pkg string) error {
-	_, err := pm.Executor.RunCommand(fmt.Sprintf("apt install -y %s", pkg), true)
+	_, err := pm.Executor.RunCommand(fmt.Sprintf("apt install -y %s", pkg), CommandOptions{UseSudo: true})
 	return err
 }
 
 // RemovePackage removes a package from the host.
 func (pm AptPackageManager) RemovePackage(host *UnixHost, pkg string) error {
-	_, err := pm.Executor.RunCommand(fmt.Sprintf("apt remove -y %s", pkg), true)
+	_, err := pm.Executor.RunCommand(fmt.Sprintf("apt remove -y %s", pkg), CommandOptions{UseSudo: true})
 	return err
 }
 
 // UpgradePackage upgrades a package to the latest version.
 func (pm AptPackageManager) UpgradePackage(host *UnixHost, pkg string) error {
-	_, err := pm.Executor.RunCommand(fmt.Sprintf("apt upgrade -y %s", pkg), true)
+	_, err := pm.Executor.RunCommand(fmt.Sprintf("apt upgrade -y %s", pkg), CommandOptions{UseSudo: true})
 	return err
 }
 
 // UpgradeAll upgrades all the packages to their latest versions.
 func (pm AptPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
-	output, err := pm.Executor.RunCommand("apt upgrade -y", true)
+	output, err := pm.Executor.RunCommand("apt upgrade -y", CommandOptions{UseSudo: true})
 	if err != nil {
 		return nil, fmt.Errorf("failed to upgrade all packages: %v, Output: %s", err, output)
 	}
@@ -119,13 +119,13 @@ func (pm AptPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
 
 // CheckOSUpdates checks for OS updates.
 func (pm AptPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
-	_, err := pm.Executor.RunCommand("apt update", true)
+	_, err := pm.Executor.RunCommand("apt update", CommandOptions{UseSudo: true})
 	if err != nil {
 		log.Fatalf("Failed to update apt: %v", err)
 		return nil, fmt.Errorf("Failed to update apt: %w", err)
 	}
 
-	output, err := pm.Executor.RunCommand("apt list --upgradable", true)
+	output, err := pm.Executor.RunCommand("apt list --upgradable", CommandOptions{UseSudo: false})
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +166,7 @@ type BrewPackageManager struct {
 
 // ListPackages returns the installed packages.
 func (pm BrewPackageManager) ListPackages(host *UnixHost) ([]string, error) {
-	output, err := pm.Executor.RunCommand("brew list --version", false)
+	output, err := pm.Executor.RunCommand("brew list --version", CommandOptions{UseSudo: false})
 	if err != nil {
 		return nil, err
 	}
@@ -177,24 +177,24 @@ func (pm BrewPackageManager) ListPackages(host *UnixHost) ([]string, error) {
 
 // AddPackage adds a package to the host.
 func (pm BrewPackageManager) AddPackage(host *UnixHost, pkg string) error {
-	_, err := pm.Executor.RunCommand(fmt.Sprintf("brew install %s", pkg), false)
+	_, err := pm.Executor.RunCommand(fmt.Sprintf("brew install %s", pkg), CommandOptions{UseSudo: false})
 	return err
 }
 
 func (pm BrewPackageManager) RemovePackage(host *UnixHost, pkg string) error {
-	_, err := pm.Executor.RunCommand(fmt.Sprintf("brew uninstall %s", pkg), false)
+	_, err := pm.Executor.RunCommand(fmt.Sprintf("brew uninstall %s", pkg), CommandOptions{UseSudo: false})
 	return err
 }
 
 // UpgradePackage upgrades a package to the latest version.
 func (pm BrewPackageManager) UpgradePackage(host *UnixHost, pkg string) error {
-	_, err := pm.Executor.RunCommand(fmt.Sprintf("brew upgrade %s", pkg), false)
+	_, err := pm.Executor.RunCommand(fmt.Sprintf("brew upgrade %s", pkg), CommandOptions{UseSudo: false})
 	return err
 }
 
 // CheckOSUpdates checks for OS updates.
 func (pm BrewPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
-	output, err := pm.Executor.RunCommand("brew outdated", false)
+	output, err := pm.Executor.RunCommand("brew outdated", CommandOptions{UseSudo: false})
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +206,7 @@ func (pm BrewPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 // UpgradeAll upgrades all the packages to their latest versions.
 func (pm BrewPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
 	// We explicitly don't want to run as root here, as brew will complain
-	output, err := pm.Executor.RunCommand("brew upgrade", false)
+	output, err := pm.Executor.RunCommand("brew upgrade", CommandOptions{UseSudo: false})
 	if err != nil {
 		return nil, fmt.Errorf("failed to upgrade all packages: %v, Output: %s", err, output)
 	}

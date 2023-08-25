@@ -16,13 +16,15 @@ type MacOSHost struct {
 
 // Reboot restarts the macOS host.
 func (h MacOSHost) Reboot() error {
-	_, err := h.RunCommand("sudo reboot")
+	commandOptions := CommandOptions{UseSudo: true}
+	_, err := h.RunCommand("reboot", commandOptions)
 	return err
 }
 
 // Shutdown turns off the macOS host.
 func (h MacOSHost) Shutdown() error {
-	_, err := h.RunCommand("sudo shutdown -h now")
+	commandOptions := CommandOptions{UseSudo: true}
+	_, err := h.RunCommand("shutdown -h now", commandOptions)
 	return err
 }
 
@@ -52,15 +54,16 @@ func (h MacOSHost) CheckUpdates() ([]Update, error) {
 	return []Update{}, nil
 }
 
-func (h MacOSHost) RunCommand(cmd string) (string, error) {
-	return h.UnixHost.RunCommand(cmd, CommandOptions{})
+func (h MacOSHost) RunCommand(cmd string, commandOptions CommandOptions) (string, error) {
+	return h.UnixHost.RunCommand(cmd, commandOptions)
 }
 
 // CPUUsage retrieves the CPU usage for the macOS host.
 var idleRegex = regexp.MustCompile(`(\d+\.\d+)% idle`)
 
 func (h MacOSHost) CPUUsage() (float64, error) {
-	output, err := h.RunCommand("top -l 1 | grep 'CPU usage'")
+	commandOptions := CommandOptions{UseSudo: false}
+	output, err := h.RunCommand("top -l 1 | grep 'CPU usage'", commandOptions)
 	if err != nil {
 		return 0, err
 	}
@@ -80,7 +83,8 @@ func (h MacOSHost) CPUUsage() (float64, error) {
 
 // DiskUsage retrieves the disk usage for the macOS host.
 func (h MacOSHost) DiskUsage() (float64, error) {
-	output, err := h.RunCommand("df / | tail -1 | awk '{print $5}'")
+	commandOptions := CommandOptions{UseSudo: false}
+	output, err := h.RunCommand("df / | tail -1 | awk '{print $5}'", commandOptions)
 	if err != nil {
 		return 0, err
 	}
@@ -96,7 +100,8 @@ func (h MacOSHost) DiskUsage() (float64, error) {
 
 // RunningProcesses retrieves a list of running processes on the macOS host.
 func (h MacOSHost) RunningProcesses() ([]string, error) {
-	output, err := h.RunCommand("ps -axco command")
+	commandOptions := CommandOptions{UseSudo: false}
+	output, err := h.RunCommand("ps -axco command", commandOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +113,8 @@ func (h MacOSHost) RunningProcesses() ([]string, error) {
 var activeMemoryRegex = regexp.MustCompile(`Pages active:\s+(\d+)`)
 
 func (h MacOSHost) MemoryUsage() (float64, error) {
-	output, err := h.RunCommand("vm_stat | grep 'Pages active'")
+	commandOptions := CommandOptions{UseSudo: false}
+	output, err := h.RunCommand("vm_stat | grep 'Pages active'", commandOptions)
 	if err != nil {
 		return 0, err
 	}

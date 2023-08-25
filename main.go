@@ -144,7 +144,11 @@ func readScriptFile(path string) (string, error) {
 }
 
 func executeScript(host steelcut.Host, script string) error {
-	result, err := host.RunCommand(script)
+	commandOptions := steelcut.CommandOptions{
+		UseSudo: false,
+	}
+
+	result, err := host.RunCommand(script, commandOptions)
 	if err != nil {
 		return err
 	}
@@ -260,7 +264,11 @@ func addHosts(hostnames []string, hostGroup *steelcut.HostGroup, options ...stee
 }
 
 func executeCommandOnHost(host steelcut.Host, command string) error {
-	result, err := host.RunCommand(command)
+	commandOptions := steelcut.CommandOptions{
+		UseSudo: false,
+	}
+
+	result, err := host.RunCommand(command, commandOptions)
 	if err != nil {
 		return err
 	}

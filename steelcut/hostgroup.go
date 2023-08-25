@@ -32,6 +32,7 @@ type CommandResult struct {
 func (hg *HostGroup) RunCommandOnAll(cmd string) []CommandResult {
 	var wg sync.WaitGroup
 	results := make([]CommandResult, len(hg.Hosts))
+	commandOptions := CommandOptions{UseSudo: false}
 
 	hg.RLock()
 	i := 0
@@ -39,7 +40,7 @@ func (hg *HostGroup) RunCommandOnAll(cmd string) []CommandResult {
 		wg.Add(1)
 		go func(h Host, index int) {
 			defer wg.Done()
-			result, err := h.RunCommand(cmd)
+			result, err := h.RunCommand(cmd, commandOptions)
 			results[index] = CommandResult{Result: result, Error: err, Host: h.Hostname()}
 		}(host, i)
 		i++
