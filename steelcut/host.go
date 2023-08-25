@@ -251,6 +251,11 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 		HostString: hostname,
 	}
 
+	// Initialize Executor at the start
+	if unixHost.Executor == nil {
+		unixHost.Executor = DefaultCommandExecutor{} // Assuming you have a DefaultExecutor
+	}
+
 	for _, option := range options {
 		option(unixHost)
 	}
