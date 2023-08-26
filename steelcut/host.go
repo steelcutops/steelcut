@@ -432,17 +432,14 @@ func (h UnixHost) isLocal() bool {
 }
 
 func (h UnixHost) runLocalCommand(cmd string, useSudo bool, sudoPassword string) (string, error) {
-	parts := strings.Fields(cmd)
-	head := parts[0]
-	parts = parts[1:]
-
 	if useSudo {
 		if sudoPassword == "" {
 			return "", errors.New("sudo: password is required but not provided")
 		}
 		log.Println("Providing sudo password through stdin for local command")
-		sudoCmd := append([]string{"-S", head}, parts...)
-		command := exec.Command("sudo", sudoCmd...)
+
+		// Executing the command within a shell
+		command := exec.Command("sudo", "-S", "bash", "-c", cmd)
 		command.Stdin = strings.NewReader(sudoPassword + "\n") // Write password to stdin
 		out, err := command.CombinedOutput()
 		outputStr := string(out)
@@ -461,7 +458,8 @@ func (h UnixHost) runLocalCommand(cmd string, useSudo bool, sudoPassword string)
 		return outputStr, nil
 	}
 
-	command := exec.Command(head, parts...)
+	// Executing the command within a shell for non-sudo commands as well
+	command := exec.Command("bash", "-c", cmd)
 	out, err := command.Output()
 	if err != nil {
 		log.Printf("Error running local command: %v\n", err)
@@ -469,6 +467,7 @@ func (h UnixHost) runLocalCommand(cmd string, useSudo bool, sudoPassword string)
 	}
 	return string(out), nil
 }
+
 
 func (h UnixHost) runRemoteCommand(cmd string, useSudo bool, sudoPassword string) (string, error) {
 	log.Printf("Value of useSudo: %v", useSudo)
