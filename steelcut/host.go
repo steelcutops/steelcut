@@ -537,7 +537,6 @@ func (h UnixHost) runRemoteCommand(cmd string, useSudo bool, sudoPassword string
 		log.Printf("Command '%s' over SSH timed out after %v.", cmd, timeout)
 		return "", errors.New("command timed out")
 	}
-
 }
 
 func (h UnixHost) getSSHConfig() (*ssh.ClientConfig, error) {
