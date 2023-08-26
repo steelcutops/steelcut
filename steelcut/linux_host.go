@@ -248,3 +248,37 @@ func (h LinuxHost) ListUserSessions() ([]string, error) {
 	}
 	return userSessions, nil
 }
+
+// EnableService enables a systemd service on the Linux host.
+func (h LinuxHost) EnableService(serviceName string) error {
+	commandOptions := CommandOptions{UseSudo: true}
+	_, err := h.RunCommand(fmt.Sprintf("systemctl enable %s", serviceName), commandOptions)
+	return err
+}
+
+// StartService starts a systemd service on the Linux host.
+func (h LinuxHost) StartService(serviceName string) error {
+	commandOptions := CommandOptions{UseSudo: true}
+	_, err := h.RunCommand(fmt.Sprintf("systemctl start %s", serviceName), commandOptions)
+	return err
+}
+
+// StopService stops a systemd service on the Linux host.
+func (h LinuxHost) StopService(serviceName string) error {
+	commandOptions := CommandOptions{UseSudo: true}
+	_, err := h.RunCommand(fmt.Sprintf("systemctl stop %s", serviceName), commandOptions)
+	return err
+}
+
+// RestartService restarts a systemd service on the Linux host.
+func (h LinuxHost) RestartService(serviceName string) error {
+	commandOptions := CommandOptions{UseSudo: true}
+	_, err := h.RunCommand(fmt.Sprintf("systemctl restart %s", serviceName), commandOptions)
+	return err
+}
+
+// CheckServiceStatus checks the status of a systemd service on the Linux host.
+func (h LinuxHost) CheckServiceStatus(serviceName string) (string, error) {
+	commandOptions := CommandOptions{UseSudo: false}
+	return h.RunCommand(fmt.Sprintf("systemctl status %s", serviceName), commandOptions)
+}
