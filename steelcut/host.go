@@ -98,6 +98,10 @@ func (dce DefaultCommandExecutor) RunCommand(command string, options CommandOpti
 }
 
 func (dce DefaultCommandExecutor) RunCommandWithOverride(command string, overrideOptions CommandOptions) (string, error) {
+	if dce.Host == nil {
+		return "", errors.New("host is not set in command executor")
+	}
+
 	finalOptions := dce.Options // Start with default options.
 
 	// Override with provided options if necessary.
@@ -251,16 +255,10 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 		HostString: hostname,
 	}
 
-	// Initialize Executor at the start
-	if unixHost.Executor == nil {
-		unixHost.Executor = DefaultCommandExecutor{} // Assuming you have a DefaultExecutor
-	}
-
 	for _, option := range options {
 		option(unixHost)
 	}
 
-	// If the username has not been specified, use the current user's username.
 	if unixHost.User == "" {
 		currentUser, err := user.Current()
 		if err != nil {
@@ -272,7 +270,6 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 	if unixHost.Detector == nil {
 		unixHost.Detector = DefaultOSDetector{}
 	}
-	log.Printf("OS detector: %T\n", unixHost.Detector)
 
 	// If the OS has not been specified, determine it.
 	if unixHost.OS == "" {
@@ -283,30 +280,66 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 		unixHost.OS = os
 	}
 
-	linuxHost := &LinuxHost{UnixHost: unixHost}
-	macHost := &MacOSHost{UnixHost: unixHost}
+	// Create CommandOptions from UnixHost
+	cmdOptions := CommandOptions{
+		SudoPassword: unixHost.SudoPassword,
+	}
 
 	switch {
 	case strings.HasPrefix(unixHost.OS, "Linux_Ubuntu") || strings.HasPrefix(unixHost.OS, "Linux_Debian"):
 		log.Println("Detected Debian/Ubuntu")
+
+		linuxHost := &LinuxHost{
+			UnixHost: unixHost,
+		}
+
+		if unixHost.Executor == nil {
+			unixHost.Executor = &DefaultCommandExecutor{
+				Host:    linuxHost,
+				Options: cmdOptions,
+			}
+		}
+
 		linuxHost.PackageManager = AptPackageManager{Executor: unixHost.Executor}
 		return linuxHost, nil
+
 	case strings.HasPrefix(unixHost.OS, "Linux_RedHat") || strings.HasPrefix(unixHost.OS, "Linux_CentOS") || strings.HasPrefix(unixHost.OS, "Linux_Fedora"):
 		log.Println("Detected Red Hat/CentOS/Fedora")
+
+		linuxHost := &LinuxHost{
+			UnixHost: unixHost,
+		}
+
+		if unixHost.Executor == nil {
+			unixHost.Executor = &DefaultCommandExecutor{
+				Host:    linuxHost,
+				Options: cmdOptions,
+			}
+		}
+
 		linuxHost.PackageManager = YumPackageManager{Executor: unixHost.Executor}
 		return linuxHost, nil
+
 	case unixHost.OS == "Darwin":
-		// Set the executor if it's nil AFTER creating the MacOSHost.
-		if unixHost.Executor == nil {
-			macHost.Executor = macHost // I think you might have intended something different here?
-			unixHost.Executor = macHost.Executor
+		log.Println("Detected macOS")
+
+		macHost := &MacOSHost{
+			UnixHost: unixHost,
 		}
+
+		if unixHost.Executor == nil {
+			unixHost.Executor = &DefaultCommandExecutor{
+				Host:    macHost,
+				Options: cmdOptions,
+			}
+		}
+
 		macHost.PackageManager = BrewPackageManager{Executor: unixHost.Executor}
 		return macHost, nil
+
 	default:
 		return nil, fmt.Errorf("unsupported operating system: %s", unixHost.OS)
 	}
-
 }
 
 // RunCommand executes the specified command on the host, either locally or remotely via SSH.
@@ -438,7 +471,7 @@ func (h UnixHost) runRemoteCommand(cmd string, useSudo bool, sudoPassword string
 		return "", err
 	}
 
-	timeout := 600 * time.Second
+	timeout := 15 * time.Minute
 	client, err := h.SSHClient.Dial("tcp", h.Hostname()+":22", config, timeout)
 	if err != nil || client == nil {
 		return "", err

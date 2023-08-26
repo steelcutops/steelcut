@@ -109,6 +109,9 @@ func (pm AptPackageManager) UpgradePackage(host *UnixHost, pkg string) error {
 
 // UpgradeAll upgrades all the packages to their latest versions.
 func (pm AptPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
+	if pm.Executor == nil {
+		return nil, fmt.Errorf("executor is nil")
+	}
 	output, err := pm.Executor.RunCommand("apt upgrade -y", CommandOptions{UseSudo: true})
 	if err != nil {
 		return nil, fmt.Errorf("failed to upgrade all packages: %v, Output: %s", err, output)
