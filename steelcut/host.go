@@ -259,12 +259,8 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 		option(unixHost)
 	}
 
-	if unixHost.User == "" {
-		currentUser, err := user.Current()
-		if err != nil {
-			return nil, fmt.Errorf("could not get current user: %v", err)
-		}
-		unixHost.User = currentUser.Username
+	if err := setDefaultUserIfEmpty(unixHost); err != nil {
+		return nil, err
 	}
 
 	if unixHost.Detector == nil {
@@ -273,73 +269,79 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 
 	// If the OS has not been specified, determine it.
 	if unixHost.OS == "" {
-		os, err := unixHost.Detector.DetermineOS(unixHost)
+		osType, err := unixHost.Detector.DetermineOS(unixHost)
 		if err != nil {
 			return nil, err
 		}
-		unixHost.OS = os
+		unixHost.OS = osType
 	}
 
-	// Create CommandOptions from UnixHost
 	cmdOptions := CommandOptions{
 		SudoPassword: unixHost.SudoPassword,
 	}
 
 	switch {
-	case strings.HasPrefix(unixHost.OS, "Linux_Ubuntu") || strings.HasPrefix(unixHost.OS, "Linux_Debian"):
-		log.Println("Detected Debian/Ubuntu")
-
-		linuxHost := &LinuxHost{
-			UnixHost: unixHost,
-		}
-
-		if unixHost.Executor == nil {
-			unixHost.Executor = &DefaultCommandExecutor{
-				Host:    linuxHost,
-				Options: cmdOptions,
-			}
-		}
-
-		linuxHost.PackageManager = AptPackageManager{Executor: unixHost.Executor}
-		return linuxHost, nil
-
-	case strings.HasPrefix(unixHost.OS, "Linux_RedHat") || strings.HasPrefix(unixHost.OS, "Linux_CentOS") || strings.HasPrefix(unixHost.OS, "Linux_Fedora"):
-		log.Println("Detected Red Hat/CentOS/Fedora")
-
-		linuxHost := &LinuxHost{
-			UnixHost: unixHost,
-		}
-
-		if unixHost.Executor == nil {
-			unixHost.Executor = &DefaultCommandExecutor{
-				Host:    linuxHost,
-				Options: cmdOptions,
-			}
-		}
-
-		linuxHost.PackageManager = YumPackageManager{Executor: unixHost.Executor}
-		return linuxHost, nil
-
+	case isOsType(unixHost.OS, "Linux_Ubuntu", "Linux_Debian"):
+		return configureLinuxHost(unixHost, cmdOptions, "apt"), nil
+	case isOsType(unixHost.OS, "Linux_RedHat", "Linux_CentOS", "Linux_Fedora"):
+		return configureLinuxHost(unixHost, cmdOptions, "yum"), nil
 	case unixHost.OS == "Darwin":
-		log.Println("Detected macOS")
-
-		macHost := &MacOSHost{
-			UnixHost: unixHost,
-		}
-
-		if unixHost.Executor == nil {
-			unixHost.Executor = &DefaultCommandExecutor{
-				Host:    macHost,
-				Options: cmdOptions,
-			}
-		}
-
-		macHost.PackageManager = BrewPackageManager{Executor: unixHost.Executor}
-		return macHost, nil
-
+		return configureMacHost(unixHost, cmdOptions), nil
 	default:
 		return nil, fmt.Errorf("unsupported operating system: %s", unixHost.OS)
 	}
+}
+
+func setDefaultUserIfEmpty(host *UnixHost) error {
+	if host.User != "" {
+		return nil
+	}
+	currentUser, err := user.Current()
+	if err != nil {
+		return fmt.Errorf("could not get current user: %v", err)
+	}
+	host.User = currentUser.Username
+	return nil
+}
+
+func isOsType(os string, types ...string) bool {
+	for _, t := range types {
+		if strings.HasPrefix(os, t) {
+			return true
+		}
+	}
+	return false
+}
+
+func configureLinuxHost(host *UnixHost, cmdOptions CommandOptions, pkgManagerType string) *LinuxHost {
+	linuxHost := &LinuxHost{UnixHost: host}
+	if host.Executor == nil {
+		host.Executor = &DefaultCommandExecutor{
+			Host:    linuxHost,
+			Options: cmdOptions,
+		}
+	}
+
+	switch pkgManagerType {
+	case "apt":
+		linuxHost.PackageManager = AptPackageManager{Executor: host.Executor}
+	case "yum":
+		linuxHost.PackageManager = YumPackageManager{Executor: host.Executor}
+	}
+
+	return linuxHost
+}
+
+func configureMacHost(host *UnixHost, cmdOptions CommandOptions) *MacOSHost {
+	macHost := &MacOSHost{UnixHost: host}
+	if host.Executor == nil {
+		host.Executor = &DefaultCommandExecutor{
+			Host:    macHost,
+			Options: cmdOptions,
+		}
+	}
+	macHost.PackageManager = BrewPackageManager{Executor: host.Executor}
+	return macHost
 }
 
 // RunCommand executes the specified command on the host, either locally or remotely via SSH.
