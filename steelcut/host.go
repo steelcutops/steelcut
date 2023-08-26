@@ -52,8 +52,10 @@ func (d DefaultOSDetector) DetermineOS(host *UnixHost) (string, error) {
 
 		if strings.Contains(osRelease, "ID=ubuntu") || strings.Contains(osRelease, "ID=debian") {
 			return "Linux_Ubuntu", nil
+		} else if strings.Contains(osRelease, "ID=fedora") {
+			return "Linux_Fedora", nil
 		} else {
-			return "Linux_RedHat", nil // Adjust this as per the distributions you want to handle.
+			return "Linux_RedHat", nil
 		}
 	}
 
@@ -283,13 +285,16 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 	switch {
 	case isOsType(unixHost.OS, "Linux_Ubuntu", "Linux_Debian"):
 		return configureLinuxHost(unixHost, cmdOptions, "apt"), nil
-	case isOsType(unixHost.OS, "Linux_RedHat", "Linux_CentOS", "Linux_Fedora"):
+	case isOsType(unixHost.OS, "Linux_RedHat", "Linux_CentOS"):
 		return configureLinuxHost(unixHost, cmdOptions, "yum"), nil
+	case isOsType(unixHost.OS, "Linux_Fedora"):
+		return configureLinuxHost(unixHost, cmdOptions, "dnf"), nil
 	case unixHost.OS == "Darwin":
 		return configureMacHost(unixHost, cmdOptions), nil
 	default:
 		return nil, fmt.Errorf("unsupported operating system: %s", unixHost.OS)
 	}
+
 }
 
 func setDefaultUserIfEmpty(host *UnixHost) error {
@@ -327,6 +332,8 @@ func configureLinuxHost(host *UnixHost, cmdOptions CommandOptions, pkgManagerTyp
 		linuxHost.PackageManager = AptPackageManager{Executor: host.Executor}
 	case "yum":
 		linuxHost.PackageManager = YumPackageManager{Executor: host.Executor}
+	case "dnf":
+		linuxHost.PackageManager = DnfPackageManager{Executor: host.Executor}
 	}
 
 	return linuxHost

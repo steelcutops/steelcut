@@ -162,6 +162,56 @@ func (pm AptPackageManager) parseAptUpdates(output string) []Update {
 	return updates
 }
 
+type DnfPackageManager struct {
+	Executor CommandExecutor
+	Logger   *log.Logger
+}
+
+func (pm DnfPackageManager) ListPackages(host *UnixHost) ([]string, error) {
+	output, err := pm.Executor.RunCommand("dnf list installed", CommandOptions{UseSudo: false})
+	if err != nil {
+		return nil, err
+	}
+	return strings.Split(output, "\n"), nil
+}
+
+func (pm DnfPackageManager) AddPackage(host *UnixHost, pkg string) error {
+	_, err := pm.Executor.RunCommand(fmt.Sprintf("dnf install -y %s", pkg), CommandOptions{UseSudo: true})
+	return err
+}
+
+func (pm DnfPackageManager) RemovePackage(host *UnixHost, pkg string) error {
+	_, err := pm.Executor.RunCommand(fmt.Sprintf("dnf remove -y %s", pkg), CommandOptions{UseSudo: true})
+	return err
+}
+
+func (pm DnfPackageManager) UpgradePackage(host *UnixHost, pkg string) error {
+	_, err := pm.Executor.RunCommand(fmt.Sprintf("dnf upgrade -y %s", pkg), CommandOptions{UseSudo: true})
+	return err
+}
+
+func (pm DnfPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
+	log.Print("Checking for DNF OS updates")
+	output, err := pm.Executor.RunCommand("dnf check-update", CommandOptions{UseSudo: true})
+	if err != nil {
+		log.Printf("Error checking DNF updates: %v", err)
+		return nil, err
+	}
+
+	updates := strings.Split(output, "\n")
+	log.Printf("DNF Updates available: %v", updates)
+	return updates, nil
+}
+
+func (pm DnfPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
+	output, err := pm.Executor.RunCommand("dnf upgrade -y", CommandOptions{UseSudo: true})
+	if err != nil {
+		return nil, fmt.Errorf("failed to upgrade all packages using DNF: %v, Output: %s", err, output)
+	}
+	updates := parseUpdates(output)
+	return updates, nil
+}
+
 type BrewPackageManager struct {
 	Executor CommandExecutor
 	Logger   *log.Logger
