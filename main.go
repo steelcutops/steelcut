@@ -24,6 +24,7 @@ type HostInfo struct {
 }
 
 type flags struct {
+	CheckHealth        bool
 	CPUThreshold       float64
 	Concurrency        int
 	Debug              bool
@@ -79,8 +80,17 @@ func readHostsFromFile(filePath string) (map[string][]string, error) {
 	return hosts, nil
 }
 
+func checkHostHealth(host steelcut.Host) error {
+	if err := host.IsReachable(); err != nil {
+		return fmt.Errorf("host %s is not reachable: %v", host.Hostname(), err)
+	}
+	fmt.Printf("Host %s is healthy!\n", host.Hostname())
+	return nil
+}
+
 func parseFlags() *flags {
 	f := &flags{}
+	flag.BoolVar(&f.CheckHealth, "check-health", false, "Perform a basic health check on the host")
 	flag.BoolVar(&f.Debug, "debug", false, "Enable debug log level")
 	flag.BoolVar(&f.InfoDump, "info", false, "Dump information about the hosts")
 	flag.BoolVar(&f.KeyPassPrompt, "keypass", false, "Passphrase for decrypting SSH keys")
@@ -313,6 +323,13 @@ func main() {
 	options := buildHostOptions(f, password, keyPass)
 
 	hostGroup := initializeHosts(f, options)
+
+	if f.CheckHealth {
+		err := processHosts(hostGroup, checkHostHealth, f.Concurrency)
+		if err != nil {
+			log.Fatalf("Error during Health Check: %v", err)
+		}
+	}
 
 	if f.ExecCommand != "" {
 		err := processHosts(hostGroup, func(host steelcut.Host) error {
