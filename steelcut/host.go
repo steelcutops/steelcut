@@ -468,7 +468,6 @@ func (h UnixHost) runLocalCommand(cmd string, useSudo bool, sudoPassword string)
 	return string(out), nil
 }
 
-
 func (h UnixHost) runRemoteCommand(cmd string, useSudo bool, sudoPassword string) (string, error) {
 	log.Printf("Value of useSudo: %v", useSudo)
 	if h.SSHClient == nil {
