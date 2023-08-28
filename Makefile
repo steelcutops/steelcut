@@ -1,6 +1,6 @@
 build:
 	@echo "Building the project..."
-	go build -o steelcut
+	go build -o bin/steelcut
 	@echo "Build complete!"
 
 docs:
@@ -25,7 +25,7 @@ run:
 
 clean:
 	@echo "Cleaning up..."
-	rm -f steelcut/steelcut
+	rm -f bin/steelcut
 	@echo "Clean up complete!"
 
 vet:
