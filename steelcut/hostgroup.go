@@ -23,6 +23,19 @@ func (hg *HostGroup) AddHost(host Host) {
 	hg.Hosts[host.Hostname()] = host
 }
 
+func (hg *HostGroup) RemoveHost(hostname string) {
+	hg.Lock()
+	defer hg.Unlock()
+	delete(hg.Hosts, hostname)
+}
+
+func (hg *HostGroup) HasHost(hostname string) bool {
+	hg.RLock()
+	defer hg.RUnlock()
+	_, exists := hg.Hosts[hostname]
+	return exists
+}
+
 type CommandResult struct {
 	Result string
 	Error  error
