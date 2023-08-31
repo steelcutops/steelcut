@@ -10,8 +10,10 @@ import (
 	"sync"
 	"time"
 
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/m-217/steelcut/steelcut"
 	"github.com/sirupsen/logrus"
+
 	"golang.org/x/term"
 	"gopkg.in/ini.v1"
 )
@@ -178,27 +180,29 @@ func processHosts(hg *steelcut.HostGroup, action func(host steelcut.Host) error,
 			defer wg.Done()          // Decrement wait group counter when done
 			sem <- struct{}{}        // Acquire token
 			defer func() { <-sem }() // Release token
+
 			if err := action(h); err != nil {
-				errCh <- err
+				errCh <- fmt.Errorf("error while processing host %s: %w", h.Hostname(), err)
 			}
 		}(host)
 	}
 	hg.RUnlock()
 
 	wg.Wait() // Wait for all goroutines to complete
-
 	close(errCh) // Close error channel when done
 
-	var errors []error
+	var result *multierror.Error // Initialize multierror
 	for err := range errCh {
-		errors = append(errors, err)
+		// Append each error into multierror
+		result = multierror.Append(result, err)
 	}
 
-	if len(errors) > 0 {
-		for _, err := range errors {
+	if result != nil {
+		// Log all errors
+		for _, err := range result.Errors {
 			log.Printf("Host processing error: %v", err)
 		}
-		return fmt.Errorf("some hosts encountered errors")
+		return result // Return the multierror
 	}
 
 	return nil
