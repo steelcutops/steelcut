@@ -188,7 +188,7 @@ func processHosts(hg *steelcut.HostGroup, action func(host steelcut.Host) error,
 	}
 	hg.RUnlock()
 
-	wg.Wait() // Wait for all goroutines to complete
+	wg.Wait()    // Wait for all goroutines to complete
 	close(errCh) // Close error channel when done
 
 	var result *multierror.Error // Initialize multierror
