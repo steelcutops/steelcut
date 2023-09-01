@@ -7,24 +7,13 @@ import (
 	"strings"
 )
 
-// UnixHost represents a Unix-based host system with details like username, password, and connection information.
-type UnixHost struct {
-	User          string
-	Password      string
-	KeyPassphrase string
-	OS            string
-	SudoPassword  string
-	SSHClient     SSHClient
-	HostString    string
-	FileManager   FileManager
-	Executor      CommandExecutor
-	PkgManager    PackageManager
-	Detector      OSDetector
-}
-
-// Hostname returns the host string (e.g., IP or domain name) for the Unix host.
-func (h *UnixHost) Hostname() string {
-	return h.HostString // Return the renamed field
+// FileManager defines an interface for performing file management operations.
+type FileManager interface {
+	CreateDirectory(path string) error
+	DeleteDirectory(path string) error
+	ListDirectory(path string) ([]string, error)
+	SetPermissions(path string, mode os.FileMode) error
+	GetPermissions(path string) (os.FileMode, error)
 }
 
 // CreateDirectory creates a directory at the given path.
