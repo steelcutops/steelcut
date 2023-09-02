@@ -91,19 +91,28 @@ func (pm AptPackageManager) ListPackages(host *UnixHost) ([]string, error) {
 
 // AddPackage adds a package to the host.
 func (pm AptPackageManager) AddPackage(host *UnixHost, pkg string) error {
-	_, err := pm.Executor.RunCommand(fmt.Sprintf("apt install -y %s", pkg), CommandOptions{UseSudo: true})
+	_, err := pm.Executor.RunCommand(
+		fmt.Sprintf("DEBIAN_FRONTEND=noninteractive apt-get install -y -q %s", pkg),
+		CommandOptions{UseSudo: true},
+	)
 	return err
 }
 
 // RemovePackage removes a package from the host.
 func (pm AptPackageManager) RemovePackage(host *UnixHost, pkg string) error {
-	_, err := pm.Executor.RunCommand(fmt.Sprintf("apt remove -y %s", pkg), CommandOptions{UseSudo: true})
+	_, err := pm.Executor.RunCommand(
+		fmt.Sprintf("apt-get remove -y -q %s", pkg),
+		CommandOptions{UseSudo: true},
+	)
 	return err
 }
 
 // UpgradePackage upgrades a package to the latest version.
 func (pm AptPackageManager) UpgradePackage(host *UnixHost, pkg string) error {
-	_, err := pm.Executor.RunCommand(fmt.Sprintf("apt upgrade -y %s", pkg), CommandOptions{UseSudo: true})
+	_, err := pm.Executor.RunCommand(
+		fmt.Sprintf("DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -q %s", pkg),
+		CommandOptions{UseSudo: true},
+	)
 	return err
 }
 
@@ -112,7 +121,10 @@ func (pm AptPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
 	if pm.Executor == nil {
 		return nil, fmt.Errorf("executor is nil")
 	}
-	output, err := pm.Executor.RunCommand("apt upgrade -y", CommandOptions{UseSudo: true})
+	output, err := pm.Executor.RunCommand(
+		"DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -q",
+		CommandOptions{UseSudo: true},
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upgrade all packages: %v, Output: %s", err, output)
 	}
@@ -122,13 +134,19 @@ func (pm AptPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
 
 // CheckOSUpdates checks for OS updates.
 func (pm AptPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
-	_, err := pm.Executor.RunCommand("apt update", CommandOptions{UseSudo: true})
+	_, err := pm.Executor.RunCommand(
+		"apt-get update -q",
+		CommandOptions{UseSudo: true},
+	)
 	if err != nil {
 		log.Fatalf("Failed to update apt: %v", err)
 		return nil, fmt.Errorf("Failed to update apt: %w", err)
 	}
 
-	output, err := pm.Executor.RunCommand("apt list --upgradable", CommandOptions{UseSudo: false})
+	output, err := pm.Executor.RunCommand(
+		"apt list --upgradable -q",
+		CommandOptions{UseSudo: false},
+	)
 	if err != nil {
 		return nil, err
 	}
