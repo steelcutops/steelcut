@@ -30,12 +30,11 @@ func (m *MockCommandExecutor) SetMockResponse(output string, err error) {
 }
 
 type MockOSDetector struct {
-	OS  string
-	Err error
+	OSType OSType
 }
 
-func (m MockOSDetector) DetermineOS(host *UnixHost) (string, error) {
-	return m.OS, m.Err
+func (m MockOSDetector) DetermineOS(host *UnixHost) (OSType, error) {
+	return m.OSType, nil
 }
 
 func TestNewHost_InvalidHostname(t *testing.T) {
@@ -69,7 +68,7 @@ func TestRunCommand(t *testing.T) {
 }
 
 func TestNewHost(t *testing.T) {
-	host, err := NewHost("localhost", WithOSDetector(MockOSDetector{OS: "Linux_RedHat"}))
+	host, err := NewHost("localhost", WithOSDetector(MockOSDetector{OSType: LinuxRedHat}))
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -85,7 +84,7 @@ func TestNewHost(t *testing.T) {
 }
 
 func TestNewHost_MacOS(t *testing.T) {
-	host, err := NewHost("localhost", WithOSDetector(MockOSDetector{OS: "Darwin"}))
+	host, err := NewHost("localhost", WithOSDetector(MockOSDetector{OSType: Darwin}))
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -101,26 +100,26 @@ func TestNewHost_MacOS(t *testing.T) {
 }
 
 func TestNewHost_InvalidOS(t *testing.T) {
-	_, err := NewHost("localhost", WithOSDetector(MockOSDetector{OS: "UnsupportedOS"}))
+	_, err := NewHost("localhost", WithOSDetector(MockOSDetector{OSType: Unknown}))
 	if err == nil {
 		t.Fatalf("Expected an error for unsupported OS, got nil")
 	}
 
-	expectedErr := "unsupported operating system: UnsupportedOS"
+	expectedErr := "unsupported operating system: Unknown"
 	if err.Error() != expectedErr {
 		t.Errorf("Expected error message '%s', got: %v", expectedErr, err)
 	}
 }
 
 func TestNewHost_NoOptions(t *testing.T) {
-	_, err := NewHost("", WithOSDetector(MockOSDetector{OS: ""}))
+	_, err := NewHost("", WithOSDetector(MockOSDetector{OSType: Unknown}))
 	if err == nil {
 		t.Fatalf("Expected an error for no options, got nil")
 	}
 }
 
 func TestNewHost_MultipleOptions(t *testing.T) {
-	host, err := NewHost("localhost", WithOSDetector(MockOSDetector{OS: "Linux_Debian"}))
+	host, err := NewHost("localhost", WithOSDetector(MockOSDetector{OSType: LinuxDebian}))
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}

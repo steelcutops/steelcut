@@ -3,7 +3,6 @@ package steelcut
 import (
 	"fmt"
 	"os/user"
-	"strings"
 )
 
 func setDefaultUserIfEmpty(host *UnixHost) error {
@@ -16,13 +15,4 @@ func setDefaultUserIfEmpty(host *UnixHost) error {
 	}
 	host.User = currentUser.Username
 	return nil
-}
-
-func isOsType(os string, types ...string) bool {
-	for _, t := range types {
-		if strings.HasPrefix(os, t) {
-			return true
-		}
-	}
-	return false
 }

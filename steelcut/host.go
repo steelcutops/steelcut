@@ -17,37 +17,64 @@ type commandResult struct {
 }
 
 type OSDetector interface {
-	DetermineOS(host *UnixHost) (string, error)
+	DetermineOS(host *UnixHost) (OSType, error)
 }
 
 type DefaultOSDetector struct{}
 
-func (d DefaultOSDetector) DetermineOS(host *UnixHost) (string, error) {
+// OSType represents various types of Operating Systems that are supported.
+type OSType int
+
+const (
+	Unknown OSType = iota
+	LinuxUbuntu
+	LinuxDebian
+	LinuxFedora
+	LinuxRedHat
+	Darwin
+)
+
+// String method provides the string representation of the OSType.
+func (o OSType) String() string {
+	return [...]string{
+		"Unknown",
+		"Linux_Ubuntu",
+		"Linux_Debian",
+		"Linux_Fedora",
+		"Linux_RedHat",
+		"Darwin",
+	}[o]
+}
+
+// DetermineOS modifies the original function to return an OSType enum.
+func (d DefaultOSDetector) DetermineOS(host *UnixHost) (OSType, error) {
 	output, err := host.RunCommand("uname", CommandOptions{
 		UseSudo: false,
 	})
 	if err != nil {
-		return "", err
+		return Unknown, err
 	}
 
-	osType := strings.TrimSpace(output)
+	osName := strings.TrimSpace(output)
 
-	if osType == "Linux" {
+	if osName == "Linux" {
 		osRelease, err := host.RunCommand("cat /etc/os-release", CommandOptions{UseSudo: false})
 		if err != nil {
-			return "", err
+			return Unknown, err
 		}
 
 		if strings.Contains(osRelease, "ID=ubuntu") || strings.Contains(osRelease, "ID=debian") {
-			return "Linux_Ubuntu", nil
+			return LinuxUbuntu, nil
 		} else if strings.Contains(osRelease, "ID=fedora") {
-			return "Linux_Fedora", nil
+			return LinuxFedora, nil
 		} else {
-			return "Linux_RedHat", nil
+			return LinuxRedHat, nil
 		}
+	} else if osName == "Darwin" {
+		return Darwin, nil
 	}
 
-	return osType, nil
+	return Unknown, nil
 }
 
 // RealSSHClient provides a real implementation of the SSHClient interface.
@@ -92,31 +119,30 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 	}
 
 	// If the OS has not been specified, determine it.
-	if unixHost.OS == "" {
+	if unixHost.OSType == Unknown { // Assuming that OSType field is added to UnixHost
 		osType, err := unixHost.Detector.DetermineOS(unixHost)
 		if err != nil {
 			return nil, err
 		}
-		unixHost.OS = osType
+		unixHost.OSType = osType
 	}
 
 	cmdOptions := CommandOptions{
 		SudoPassword: unixHost.SudoPassword,
 	}
 
-	switch {
-	case isOsType(unixHost.OS, "Linux_Ubuntu", "Linux_Debian"):
+	switch unixHost.OSType { // Updated to use OSType enum
+	case LinuxUbuntu, LinuxDebian:
 		return configureLinuxHost(unixHost, cmdOptions, "apt"), nil
-	case isOsType(unixHost.OS, "Linux_RedHat", "Linux_CentOS"):
+	case LinuxRedHat:
 		return configureLinuxHost(unixHost, cmdOptions, "yum"), nil
-	case isOsType(unixHost.OS, "Linux_Fedora"):
+	case LinuxFedora:
 		return configureLinuxHost(unixHost, cmdOptions, "dnf"), nil
-	case unixHost.OS == "Darwin":
+	case Darwin:
 		return configureMacHost(unixHost, cmdOptions), nil
 	default:
-		return nil, fmt.Errorf("unsupported operating system: %s", unixHost.OS)
+		return nil, fmt.Errorf("unsupported operating system: %s", unixHost.OSType)
 	}
-
 }
 
 func configureLinuxHost(host *UnixHost, cmdOptions CommandOptions, pkgManagerType string) *LinuxHost {

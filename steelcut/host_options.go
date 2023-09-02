@@ -24,9 +24,9 @@ func WithKeyPassphrase(keyPassphrase string) HostOption {
 }
 
 // WithOS returns a HostOption that sets the OS for a UnixHost.
-func WithOS(os string) HostOption {
+func WithOS(os OSType) HostOption {
 	return func(host *UnixHost) {
-		host.OS = os
+		host.OSType = os
 	}
 }
 
