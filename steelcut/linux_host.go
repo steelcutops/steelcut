@@ -7,14 +7,69 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // LinuxHost represents a Linux host with package management capabilities.
 type LinuxHost struct {
-	*UnixHost
+	Options        *HostOptions
 	PackageManager PackageManager
+}
+
+func (h *LinuxHost) Hostname() string {
+	return h.Options.HostString
+}
+
+func (h *LinuxHost) CheckUpdates() ([]Update, error) {
+	return []Update{}, nil
+}
+
+func (h *LinuxHost) IsReachable() error {
+	if h.isLocal() {
+		return nil
+	}
+
+	if err := h.ping(); err != nil {
+		return err
+	}
+	return h.sshable()
+}
+
+func (h *LinuxHost) isLocal() bool {
+	return h.Hostname() == "localhost" || h.Hostname() == "127.0.0.1"
+}
+
+func (h *LinuxHost) ping() error {
+	cmd := "ping -c 1 " + h.Hostname()
+	_, err := exec.Command("bash", "-c", cmd).Output()
+	if err != nil {
+		return fmt.Errorf("ping test failed: %v", err)
+	}
+	log.Printf("Ping test passed for host '%s'\n", h.Hostname())
+	return nil
+}
+
+func (h *LinuxHost) sshable() error {
+	if h.isLocal() {
+		return nil
+	}
+
+	config, err := h.getSSHConfig()
+	if err != nil {
+		return err
+	}
+
+	timeout := 60 * time.Second
+	client, err := h.SSHClient.Dial("tcp", h.Hostname()+":22", config, timeout)
+	if err != nil {
+		return fmt.Errorf("SSH test failed: %v", err)
+	}
+	client.Close()
+	log.Printf("SSH test passed for host '%s'\n", h.Hostname())
+	return nil
 }
 
 // ListPackages retrieves a list of installed packages on the Linux host.

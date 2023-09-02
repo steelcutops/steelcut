@@ -19,6 +19,47 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// SystemReporter defines an interface for reporting system-related information.
+type SystemReporter interface {
+	CPUUsage() (float64, error)
+	DiskUsage() (float64, error)
+	MemoryUsage() (float64, error)
+	RunningProcesses() ([]string, error)
+}
+
+// Host defines an interface for performing operations on a host system.
+type Host interface {
+	SSHClient
+	FileManager
+	CommandExecutor
+	PackageManager
+	OSDetector
+	SystemReporter
+	CheckUpdates() ([]Update, error)
+	Hostname() string
+	IsReachable() error
+	Reboot() error
+	Shutdown() error
+	UpgradeAllPackages() ([]Update, error)
+}
+
+type HostOptions struct {
+	Client        SSHClient
+	FileMngr      FileManager
+	CmdExecutor   CommandExecutor
+	PackageMngr   PackageManager
+	OSDet         OSDetector
+	SysReporter   SystemReporter
+	User          string
+	Password      string
+	KeyPassphrase string
+	OS            string
+	SudoPassword  string
+	HostString    string
+}
+
+type HostOption func(*HostOptions)
+
 type CommandExecutor interface {
 	RunCommand(command string, options CommandOptions) (string, error)
 }
@@ -29,23 +70,20 @@ type commandResult struct {
 }
 
 type OSDetector interface {
-	DetermineOS(host *UnixHost) (string, error)
+	DetermineOS(options *HostOptions) (string, error)
 }
 
 type DefaultOSDetector struct{}
 
-func (d DefaultOSDetector) DetermineOS(host *UnixHost) (string, error) {
-	output, err := host.RunCommand("uname", CommandOptions{
-		UseSudo: false,
-	})
+func (d DefaultOSDetector) DetermineOS(options *HostOptions) (string, error) {
+	output, err := options.CmdExecutor.RunCommand("uname", CommandOptions{UseSudo: false})
 	if err != nil {
 		return "", err
 	}
-
 	osType := strings.TrimSpace(output)
 
 	if osType == "Linux" {
-		osRelease, err := host.RunCommand("cat /etc/os-release", CommandOptions{UseSudo: false})
+		osRelease, err := options.CmdExecutor.RunCommand("cat /etc/os-release", CommandOptions{UseSudo: false})
 		if err != nil {
 			return "", err
 		}
@@ -122,179 +160,69 @@ type CommandOptions struct {
 	SudoPassword string
 }
 
-// SystemReporter defines an interface for reporting system-related information.
-type SystemReporter interface {
-	CPUUsage() (float64, error)
-	DiskUsage() (float64, error)
-	MemoryUsage() (float64, error)
-	RunningProcesses() ([]string, error)
-}
-
-// Host defines an interface for performing operations on a host system.
-type Host interface {
-	AddPackage(pkg string) error
-	CheckUpdates() ([]Update, error)
-	Hostname() string
-	IsReachable() error
-	ListPackages() ([]string, error)
-	Reboot() error
-	RemovePackage(pkg string) error
-	RunCommand(cmd string, options CommandOptions) (string, error)
-	Shutdown() error
-	SystemReporter
-	UpgradeAllPackages() ([]Update, error)
-	UpgradePackage(pkg string) error
-}
-
-// FileManager defines an interface for performing file management operations.
-type FileManager interface {
-	CreateDirectory(path string) error
-	DeleteDirectory(path string) error
-	ListDirectory(path string) ([]string, error)
-	SetPermissions(path string, mode os.FileMode) error
-	GetPermissions(path string) (os.FileMode, error)
-}
-
-type HostOption func(*UnixHost)
-
-// WithUser returns a HostOption that sets the user for a UnixHost.
-func WithUser(user string) HostOption {
-	return func(host *UnixHost) {
-		host.User = user
-	}
-}
-
-// WithPassword returns a HostOption that sets the password for a UnixHost.
-func WithPassword(password string) HostOption {
-	return func(host *UnixHost) {
-		host.Password = password
-	}
-}
-
-// WithKeyPassphrase returns a HostOption that sets the key passphrase for a UnixHost.
 func WithKeyPassphrase(keyPassphrase string) HostOption {
-	return func(host *UnixHost) {
-		host.KeyPassphrase = keyPassphrase
+	return func(options *HostOptions) {
+		options.KeyPassphrase = keyPassphrase
 	}
 }
 
-// WithOS returns a HostOption that sets the OS for a UnixHost.
+func WithUser(user string) HostOption {
+	return func(options *HostOptions) {
+		options.User = user
+	}
+}
+
+func WithPassword(password string) HostOption {
+	return func(options *HostOptions) {
+		options.Password = password
+	}
+}
+
 func WithOS(os string) HostOption {
-	return func(host *UnixHost) {
-		host.OS = os
+	return func(options *HostOptions) {
+		options.OS = os
 	}
 }
 
-// WithSSHClient returns a HostOption that sets the SSHClient for a UnixHost.
-func WithSSHClient(client SSHClient) HostOption {
-	return func(h *UnixHost) {
-		h.SSHClient = client
-	}
-}
-
-// WithSudoPassword returns a HostOption that sets the sudo password for a UnixHost.
 func WithSudoPassword(password string) HostOption {
-	return func(host *UnixHost) {
-		host.SudoPassword = password
+	return func(options *HostOptions) {
+		options.SudoPassword = password
 	}
 }
 
-func WithCommandExecutor(executor CommandExecutor) HostOption {
-	return func(h *UnixHost) {
-		h.Executor = executor
-	}
-}
+func NewHost(options ...HostOption) (Host, error) {
+	hostOptions := &HostOptions{}
 
-func WithOSDetector(detector OSDetector) HostOption {
-	return func(host *UnixHost) {
-		host.Detector = detector
-	}
-}
-
-func (h UnixHost) IsReachable() error {
-	if h.isLocal() {
-		return nil
-	}
-
-	if err := h.ping(); err != nil {
-		return err
-	}
-	return h.sshable()
-}
-
-func (h UnixHost) ping() error {
-	cmd := "ping -c 1 " + h.Hostname()
-	_, err := exec.Command("bash", "-c", cmd).Output()
-	if err != nil {
-		return fmt.Errorf("ping test failed: %v", err)
-	}
-	log.Printf("Ping test passed for host '%s'\n", h.Hostname())
-	return nil
-}
-
-func (h UnixHost) sshable() error {
-	if h.isLocal() {
-		return nil
-	}
-
-	config, err := h.getSSHConfig()
-	if err != nil {
-		return err
-	}
-
-	timeout := 60 * time.Second
-	client, err := h.SSHClient.Dial("tcp", h.Hostname()+":22", config, timeout)
-	if err != nil {
-		return fmt.Errorf("SSH test failed: %v", err)
-	}
-	client.Close()
-	log.Printf("SSH test passed for host '%s'\n", h.Hostname())
-	return nil
-}
-
-func NewHost(hostname string, options ...HostOption) (Host, error) {
-	unixHost := &UnixHost{
-		HostString: hostname,
-	}
-
-	for _, option := range options {
-		option(unixHost)
-	}
-
-	if err := setDefaultUserIfEmpty(unixHost); err != nil {
-		return nil, err
-	}
-
-	if unixHost.Detector == nil {
-		unixHost.Detector = DefaultOSDetector{}
+	// Apply provided options
+	for _, opt := range options {
+		opt(hostOptions)
 	}
 
 	// If the OS has not been specified, determine it.
-	if unixHost.OS == "" {
-		osType, err := unixHost.Detector.DetermineOS(unixHost)
+	if hostOptions.OS == "" {
+		osType, err := hostOptions.OSDet.DetermineOS(hostOptions)
 		if err != nil {
 			return nil, err
 		}
-		unixHost.OS = osType
+		hostOptions.OS = osType
 	}
 
 	cmdOptions := CommandOptions{
-		SudoPassword: unixHost.SudoPassword,
+		SudoPassword: hostOptions.SudoPassword,
 	}
 
 	switch {
-	case isOsType(unixHost.OS, "Linux_Ubuntu", "Linux_Debian"):
-		return configureLinuxHost(unixHost, cmdOptions, "apt"), nil
-	case isOsType(unixHost.OS, "Linux_RedHat", "Linux_CentOS"):
-		return configureLinuxHost(unixHost, cmdOptions, "yum"), nil
-	case isOsType(unixHost.OS, "Linux_Fedora"):
-		return configureLinuxHost(unixHost, cmdOptions, "dnf"), nil
-	case unixHost.OS == "Darwin":
-		return configureMacHost(unixHost, cmdOptions), nil
+	case isOsType(hostOptions.OS, "Linux_Ubuntu", "Linux_Debian"):
+		return configureLinuxHost(hostOptions, cmdOptions, "apt"), nil
+	case isOsType(hostOptions.OS, "Linux_RedHat", "Linux_CentOS"):
+		return configureLinuxHost(hostOptions, cmdOptions, "yum"), nil
+	case isOsType(hostOptions.OS, "Linux_Fedora"):
+		return configureLinuxHost(hostOptions, cmdOptions, "dnf"), nil
+	case hostOptions.OS == "Darwin":
+		return configureMacHost(hostOptions, cmdOptions), nil
 	default:
-		return nil, fmt.Errorf("unsupported operating system: %s", unixHost.OS)
+		return nil, fmt.Errorf("unsupported operating system: %s", hostOptions.OS)
 	}
-
 }
 
 func setDefaultUserIfEmpty(host *UnixHost) error {
@@ -318,10 +246,12 @@ func isOsType(os string, types ...string) bool {
 	return false
 }
 
-func configureLinuxHost(host *UnixHost, cmdOptions CommandOptions, pkgManagerType string) *LinuxHost {
-	linuxHost := &LinuxHost{UnixHost: host}
-	if host.Executor == nil {
-		host.Executor = &DefaultCommandExecutor{
+func configureLinuxHost(options *HostOptions, cmdOptions CommandOptions, pkgManagerType string) *LinuxHost {
+	linuxHost := &LinuxHost{
+		HostString: options.HostString,
+	}
+	if options.CmdExecutor == nil {
+		options.CmdExecutor = &DefaultCommandExecutor{
 			Host:    linuxHost,
 			Options: cmdOptions,
 		}
@@ -329,25 +259,25 @@ func configureLinuxHost(host *UnixHost, cmdOptions CommandOptions, pkgManagerTyp
 
 	switch pkgManagerType {
 	case "apt":
-		linuxHost.PackageManager = AptPackageManager{Executor: host.Executor}
+		linuxHost.PackageManager = AptPackageManager{Executor: options.CmdExecutor}
 	case "yum":
-		linuxHost.PackageManager = YumPackageManager{Executor: host.Executor}
+		linuxHost.PackageManager = YumPackageManager{Executor: options.CmdExecutor}
 	case "dnf":
-		linuxHost.PackageManager = DnfPackageManager{Executor: host.Executor}
+		linuxHost.PackageManager = DnfPackageManager{Executor: options.CmdExecutor}
 	}
 
 	return linuxHost
 }
 
-func configureMacHost(host *UnixHost, cmdOptions CommandOptions) *MacOSHost {
-	macHost := &MacOSHost{UnixHost: host}
-	if host.Executor == nil {
-		host.Executor = &DefaultCommandExecutor{
+func configureMacHost(options *HostOptions, cmdOptions CommandOptions) *MacOSHost {
+	macHost := &MacOSHost{}
+	if options.CmdExecutor == nil {
+		options.CmdExecutor = &DefaultCommandExecutor{
 			Host:    macHost,
 			Options: cmdOptions,
 		}
 	}
-	macHost.PackageManager = BrewPackageManager{Executor: host.Executor}
+	macHost.PackageManager = BrewPackageManager{Executor: options.CmdExecutor}
 	return macHost
 }
 
@@ -425,10 +355,6 @@ func (h UnixHost) runCommandInternal(cmd string, useSudo bool, sudoPassword stri
 	}
 
 	return h.runRemoteCommand(cmd, useSudo, sudoPassword)
-}
-
-func (h UnixHost) isLocal() bool {
-	return h.Hostname() == "localhost" || h.Hostname() == "127.0.0.1"
 }
 
 func (h UnixHost) runLocalCommand(cmd string, useSudo bool, sudoPassword string) (string, error) {
