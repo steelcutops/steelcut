@@ -1,5 +1,6 @@
-// Package steelcut provides functionalities to manage Unix hosts, perform SSH connections,
-// report system-related information, and manage files and directories.
+// Package steelcut provides functionalities to manage Unix hosts,
+// perform SSH connections, report system-related information,
+// and manage files and directories.
 package steelcut
 
 import (
@@ -16,6 +17,7 @@ type commandResult struct {
 	err    error
 }
 
+// OSDetector is an interface that provides a method to determine the OS type of a Unix host.
 type OSDetector interface {
 	DetermineOS(host *UnixHost) (OSType, error)
 }
@@ -96,11 +98,13 @@ func (c RealSSHClient) Dial(network, addr string, config *ssh.ClientConfig, time
 	return ssh.NewClient(sshConn, chans, reqs), nil
 }
 
+// CommandOptions struct holds options for running a command on a Unix host.
 type CommandOptions struct {
 	UseSudo      bool
 	SudoPassword string
 }
 
+// NewHost initializes a new UnixHost based on the provided options and performs OS detection.
 func NewHost(hostname string, options ...HostOption) (Host, error) {
 	unixHost := &UnixHost{
 		HostString: hostname,
@@ -145,6 +149,7 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 	}
 }
 
+// configureLinuxHost configures a Linux host given a Unix host and package manager type.
 func configureLinuxHost(host *UnixHost, cmdOptions CommandOptions, pkgManagerType string) *LinuxHost {
 	linuxHost := &LinuxHost{UnixHost: host}
 	if host.Executor == nil {
@@ -166,6 +171,7 @@ func configureLinuxHost(host *UnixHost, cmdOptions CommandOptions, pkgManagerTyp
 	return linuxHost
 }
 
+// configureMacHost configures a macOS host given a Unix host.
 func configureMacHost(host *UnixHost, cmdOptions CommandOptions) *MacOSHost {
 	macHost := &MacOSHost{UnixHost: host}
 	if host.Executor == nil {
