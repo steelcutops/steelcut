@@ -5,6 +5,7 @@ package steelcut
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"strings"
 	"time"
@@ -133,7 +134,7 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 	}
 
 	// If the OS has not been specified, determine it.
-	if unixHost.OSType == Unknown { // Assuming that OSType field is added to UnixHost
+	if unixHost.OSType == Unknown {
 		osType, err := unixHost.Detector.DetermineOS(unixHost)
 		if err != nil {
 			return nil, err
@@ -141,22 +142,18 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 		unixHost.OSType = osType
 	}
 
+	log.Printf("Detected OS: %s", unixHost.OSType.String())
+
 	cmdOptions := CommandOptions{
 		SudoPassword: unixHost.SudoPassword,
 	}
 
-	switch unixHost.OSType { // Updated to use OSType enum
-	case LinuxUbuntu, LinuxDebian:
-		return configureLinuxHost(unixHost, cmdOptions, "apt"), nil
-	case LinuxRedHat:
-		return configureLinuxHost(unixHost, cmdOptions, "yum"), nil
-	case LinuxFedora:
-		return configureLinuxHost(unixHost, cmdOptions, "dnf"), nil
-	case Darwin:
-		return configureMacHost(unixHost, cmdOptions), nil
-	default:
+	packageManagerCreator, ok := registeredPackageManagers[unixHost.OSType]
+	if !ok {
 		return nil, fmt.Errorf("unsupported operating system: %s", unixHost.OSType)
 	}
+
+	return packageManagerCreator(unixHost, cmdOptions), nil
 }
 
 // configureLinuxHost configures a Linux host given a Unix host and package manager type.

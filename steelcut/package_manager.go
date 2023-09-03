@@ -27,6 +27,24 @@ type YumPackageManager struct {
 	Logger   *log.Logger
 }
 
+var registeredPackageManagers = map[OSType]func(host *UnixHost, cmdOptions CommandOptions) Host{
+	LinuxUbuntu: func(host *UnixHost, cmdOptions CommandOptions) Host {
+		return configureLinuxHost(host, cmdOptions, "apt")
+	},
+	LinuxDebian: func(host *UnixHost, cmdOptions CommandOptions) Host {
+		return configureLinuxHost(host, cmdOptions, "apt")
+	},
+	LinuxFedora: func(host *UnixHost, cmdOptions CommandOptions) Host {
+		return configureLinuxHost(host, cmdOptions, "dnf")
+	},
+	LinuxRedHat: func(host *UnixHost, cmdOptions CommandOptions) Host {
+		return configureLinuxHost(host, cmdOptions, "yum")
+	},
+	Darwin: func(host *UnixHost, cmdOptions CommandOptions) Host {
+		return configureMacHost(host, cmdOptions)
+	},
+}
+
 func (pm YumPackageManager) ListPackages(host *UnixHost) ([]string, error) {
 	output, err := pm.Executor.RunCommand("yum list installed", CommandOptions{UseSudo: false})
 	if err != nil {
