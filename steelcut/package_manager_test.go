@@ -76,27 +76,42 @@ func TestAptPackageManager(t *testing.T) {
 	assert.Equal(t, []string{"package1/now 1.0 amd64", "package2/now 2.0 amd64"}, packages)
 
 	// Test: AddPackage
-	mockExecutor.On("RunCommand", "apt install -y package3", true).Return("", nil)
+	mockExecutor.On("RunCommand", "DEBIAN_FRONTEND=noninteractive apt-get install -y -q package3", true).Return("", nil)
 	err = packageManager.AddPackage(nil, "package3")
 	assert.Nil(t, err)
 
 	// Test: RemovePackage
-	mockExecutor.On("RunCommand", "apt remove -y package1", true).Return("", nil)
+	mockExecutor.On("RunCommand", "apt-get remove -y -q package1", true).Return("", nil)
 	err = packageManager.RemovePackage(nil, "package1")
 	assert.Nil(t, err)
 
 	// Test: UpgradePackage
-	mockExecutor.On("RunCommand", "apt upgrade -y package2", true).Return("", nil)
+	mockExecutor.On("RunCommand", "DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -q package2", true).Return("", nil)
 	err = packageManager.UpgradePackage(nil, "package2")
 	assert.Nil(t, err)
 
 	// Test: CheckOSUpdates
-	mockExecutor.On("RunCommand", "apt update", true).Return("", nil)
-	mockExecutor.On("RunCommand", "apt list --upgradable", false).Return("package1/xenial 2.0 amd64 [upgradable from: 1.0]\npackage2/xenial 3.0 amd64 [upgradable from: 2.0]", nil)
+	mockExecutor.On("RunCommand", "apt-get update -q", true).Return("", nil)
+	mockExecutor.On("RunCommand", "apt list --upgradable -q", false).Return("package1/xenial 2.0 amd64 [upgradable from: 1.0]\npackage2/xenial 3.0 amd64 [upgradable from: 2.0]", nil)
 	updates, err := packageManager.CheckOSUpdates(nil)
 	assert.Nil(t, err)
 	assert.Equal(t, []string{"package1/xenial 2.0 amd64 [upgradable from: 1.0]", "package2/xenial 3.0 amd64 [upgradable from: 2.0]"}, updates)
 
+	// Mock the upgrade all operation
+	mockExecutor.On("RunCommand", "DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -q", true).Return("package1/xenial 2.0 amd64 [upgradable from: 1.0]\npackage2/xenial 3.0 amd64 [upgradable from: 2.0]\n", nil)
+
+	upgrades, err := packageManager.UpgradeAll(nil)
+	assert.Nil(t, err)
+	assert.Equal(t, []Update{
+		{
+			PackageName: "package1",
+			Version:     "2.0",
+		},
+		{
+			PackageName: "package2",
+			Version:     "3.0",
+		},
+	}, upgrades)
 }
 
 func TestBrewPackageManager(t *testing.T) {

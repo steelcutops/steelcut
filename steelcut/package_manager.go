@@ -128,7 +128,9 @@ func (pm AptPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to upgrade all packages: %v, Output: %s", err, output)
 	}
+
 	updates := pm.parseAptUpdates(output)
+
 	return updates, nil
 }
 
@@ -155,15 +157,17 @@ func (pm AptPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 	return updates, nil
 }
 
-// parseAptUpdates parses the output of `apt upgrade -y` to get the list of packages that will be upgraded.
 func (pm AptPackageManager) parseAptUpdates(output string) []Update {
 	lines := strings.Split(output, "\n")
 	var updates []Update
 
 	for _, line := range lines {
-		// Example line: "packagename/xenial 2.0.1 amd64 [upgradable from: 1.9.3]"
 		parts := strings.Fields(line)
-		if len(parts) < 5 || parts[4] != "[upgradable" {
+		if len(parts) < 5 {
+			continue
+		}
+
+		if parts[3] != "[upgradable" {
 			continue
 		}
 
