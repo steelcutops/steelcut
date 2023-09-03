@@ -22,33 +22,20 @@ jobs:
         GOOS=darwin GOARCH=amd64 go build -o steelcut_darwin_amd64
         GOOS=linux GOARCH=amd64 go build -o steelcut_linux_amd64
 
-    - name: Create Release
-      id: create_release
-      uses: gh-actions/create-release@v1
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
+    - name: Install GitHub CLI
+      run: |
+        sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0
+        sudo apt-add-repository https://cli.github.com/packages
+        sudo apt update
+        sudo apt install gh
 
-    - name: Upload Windows Asset
-      uses: actions/upload-release-asset@v1.0.2
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./steelcut_windows_amd64.exe
-        asset_name: steelcut_windows_amd64.exe
-        asset_content_type: application/octet-stream
-
-    - name: Upload Darwin Asset
-      uses: actions/upload-release-asset@v1.0.2
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./steelcut_darwin_amd64
-        asset_name: steelcut_darwin_amd64
-        asset_content_type: application/octet-stream
-
-    - name: Upload Linux Asset
-      uses: actions/upload-release-asset@v1.0.2
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./steelcut_linux_amd64
-        asset_name: steelcut_linux_amd64
-        asset_content_type: application/octet-stream
+    - name: Create GitHub Release
+      run: |
+        gh release create ${{ github.ref }} \
+          steelcut_windows_amd64.exe \
+          steelcut_darwin_amd64 \
+          steelcut_linux_amd64 \
+          --title "Release ${{ github.ref }}" \
+          --notes "Release notes for ${{ github.ref }}"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
