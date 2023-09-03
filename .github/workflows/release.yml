@@ -22,13 +22,6 @@ jobs:
         GOOS=darwin GOARCH=amd64 go build -o steelcut_darwin_amd64
         GOOS=linux GOARCH=amd64 go build -o steelcut_linux_amd64
 
-    - name: Install GitHub CLI
-      run: |
-        sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0
-        sudo apt-add-repository https://cli.github.com/packages
-        sudo apt update
-        sudo apt install gh
-
     - name: Create GitHub Release
       run: |
         gh release create ${{ github.ref }} \
