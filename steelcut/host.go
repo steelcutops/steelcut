@@ -22,6 +22,7 @@ type OSDetector interface {
 	DetermineOS(host *UnixHost) (OSType, error)
 }
 
+// DefaultOSDetector is a default implementation of the OSDetector interface.
 type DefaultOSDetector struct{}
 
 // OSType represents various types of Operating Systems that are supported.
@@ -48,35 +49,44 @@ func (o OSType) String() string {
 	}[o]
 }
 
-// DetermineOS modifies the original function to return an OSType enum.
+// DetermineOS tries to figure out the OS of the host.
+// It returns an OSType and an error if it cannot determine the OS.
 func (d DefaultOSDetector) DetermineOS(host *UnixHost) (OSType, error) {
-	output, err := host.RunCommand("uname", CommandOptions{
-		UseSudo: false,
-	})
+	output, err := host.RunCommand("uname", CommandOptions{UseSudo: false})
 	if err != nil {
-		return Unknown, err
+		return Unknown, fmt.Errorf("failed to run uname: %w", err)
 	}
 
 	osName := strings.TrimSpace(output)
 
-	if osName == "Linux" {
-		osRelease, err := host.RunCommand("cat /etc/os-release", CommandOptions{UseSudo: false})
-		if err != nil {
-			return Unknown, err
-		}
-
-		if strings.Contains(osRelease, "ID=ubuntu") || strings.Contains(osRelease, "ID=debian") {
-			return LinuxUbuntu, nil
-		} else if strings.Contains(osRelease, "ID=fedora") {
-			return LinuxFedora, nil
-		} else {
-			return LinuxRedHat, nil
-		}
-	} else if osName == "Darwin" {
+	switch osName {
+	case "Linux":
+		return detectLinuxType(host)
+	case "Darwin":
 		return Darwin, nil
+	default:
+		return Unknown, fmt.Errorf("unknown OS: %s", osName)
+	}
+}
+
+// detectLinuxType tries to figure out the specific Linux distribution.
+func detectLinuxType(host *UnixHost) (OSType, error) {
+	osRelease, err := host.RunCommand("cat /etc/os-release", CommandOptions{UseSudo: false})
+	if err != nil {
+		return Unknown, fmt.Errorf("failed to retrieve OS release info: %w", err)
 	}
 
-	return Unknown, nil
+	if strings.Contains(osRelease, "ID=ubuntu") {
+		return LinuxUbuntu, nil
+	} else if strings.Contains(osRelease, "ID=debian") {
+		return LinuxDebian, nil
+	} else if strings.Contains(osRelease, "ID=fedora") {
+		return LinuxFedora, nil
+	} else if strings.Contains(osRelease, "ID=centos") || strings.Contains(osRelease, "ID=rhel") {
+		return LinuxRedHat, nil
+	}
+
+	return Unknown, fmt.Errorf("unsupported Linux distribution")
 }
 
 // RealSSHClient provides a real implementation of the SSHClient interface.
