@@ -1,4 +1,4 @@
-module github.com/m-217/steelcut
+module github.com/steelcutops/steelcut
 
 go 1.20
 

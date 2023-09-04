@@ -11,8 +11,8 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/m-217/steelcut/steelcut"
 	"github.com/sirupsen/logrus"
+	"github.com/steelcutops/steelcut/steelcut"
 
 	"golang.org/x/term"
 	"gopkg.in/ini.v1"
