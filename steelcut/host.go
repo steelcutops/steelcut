@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"strings"
 	"time"
 
@@ -131,6 +132,19 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 
 	if unixHost.Detector == nil {
 		unixHost.Detector = DefaultOSDetector{}
+	}
+
+	// Check if SudoPassword hasn't been set, if not, look for environment variables
+	if unixHost.SudoPassword == "" {
+		steelcutBecomePass := os.Getenv("STEELCUT_BECOME_PASS")
+		if steelcutBecomePass != "" {
+			unixHost.SudoPassword = steelcutBecomePass
+		} else {
+			ansibleBecomePass := os.Getenv("ANSIBLE_BECOME_PASS")
+			if ansibleBecomePass != "" {
+				unixHost.SudoPassword = ansibleBecomePass
+			}
+		}
 	}
 
 	// Check if SSHClient is not set and set it to default RealSSH if not provided.
