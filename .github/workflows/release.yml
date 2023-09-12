@@ -19,6 +19,9 @@ jobs:
     - name: Fetch all tags
       run: git fetch --tags
 
+    - name: List all tags
+      run: git tag
+
     - name: Generate Release Notes
       id: generate-notes
       run: |
@@ -26,7 +29,7 @@ jobs:
         CURRENT_TAG=${GITHUB_REF#refs/tags/}
 
         # Get the previous tag
-        PREVIOUS_TAG=$(git describe --tags --abbrev=0 $CURRENT_TAG^)
+        PREVIOUS_TAG=$(git tag --sort=-creatordate | awk 'NR==2')
 
         # Fetch commit messages between the two tags
         RELEASE_NOTES=$(git log $PREVIOUS_TAG..$CURRENT_TAG --pretty=format:"- %s")
