@@ -282,3 +282,37 @@ func (h LinuxHost) CheckServiceStatus(serviceName string) (string, error) {
 	commandOptions := CommandOptions{UseSudo: false}
 	return h.RunCommand(fmt.Sprintf("systemctl status %s", serviceName), commandOptions)
 }
+
+func (h *LinuxHost) Info() (HostInfo, error) {
+	// Fetch CPU Usage
+	cpuUsage, err := h.CPUUsage()
+	if err != nil {
+		return HostInfo{}, err
+	}
+
+	// Fetch Memory Usage
+	memoryUsage, err := h.MemoryUsage()
+	if err != nil {
+		return HostInfo{}, err
+	}
+
+	// Fetch Disk Usage
+	diskUsage, err := h.DiskUsage()
+	if err != nil {
+		return HostInfo{}, err
+	}
+
+	// Fetch Running Processes
+	runningProcesses, err := h.RunningProcesses()
+	if err != nil {
+		return HostInfo{}, err
+	}
+
+	// Construct and return the HostInfo struct
+	return HostInfo{
+		CPUUsage:         cpuUsage,
+		DiskUsage:        diskUsage,
+		MemoryUsage:      memoryUsage,
+		RunningProcesses: runningProcesses,
+	}, nil
+}
