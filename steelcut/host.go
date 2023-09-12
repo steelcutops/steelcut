@@ -133,6 +133,11 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 		unixHost.Detector = DefaultOSDetector{}
 	}
 
+	// Check if SSHClient is not set and set it to default RealSSH if not provided.
+	if unixHost.SSHClient == nil {
+		unixHost.SSHClient = RealSSHClient{}
+	}
+
 	// If the OS has not been specified, determine it.
 	if unixHost.OSType == Unknown {
 		osType, err := unixHost.Detector.DetermineOS(unixHost)
