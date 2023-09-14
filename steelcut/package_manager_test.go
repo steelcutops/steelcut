@@ -1,8 +1,6 @@
 package steelcut
 
 import (
-	"log"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,11 +8,9 @@ import (
 
 func TestYumPackageManager(t *testing.T) {
 	mockExecutor := new(MockCommandExecutor)
-	logger := log.New(os.Stdout, "test: ", log.Lshortfile)
 
 	packageManager := YumPackageManager{
 		Executor: mockExecutor,
-		Logger:   logger,
 	}
 
 	// Test: ListPackages
@@ -62,11 +58,9 @@ func TestYumPackageManager(t *testing.T) {
 }
 func TestAptPackageManager(t *testing.T) {
 	mockExecutor := &MockCommandExecutor{}
-	logger := log.New(os.Stdout, "test: ", log.Lshortfile)
 
 	packageManager := AptPackageManager{
 		Executor: mockExecutor,
-		Logger:   logger,
 	}
 
 	// Test: ListPackages
@@ -116,11 +110,9 @@ func TestAptPackageManager(t *testing.T) {
 
 func TestBrewPackageManager(t *testing.T) {
 	mockExecutor := new(MockCommandExecutor)
-	logger := log.New(os.Stdout, "test: ", log.Lshortfile)
 
 	packageManager := BrewPackageManager{
 		Executor: mockExecutor,
-		Logger:   logger,
 	}
 
 	// Test: ListPackages

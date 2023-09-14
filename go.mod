@@ -1,6 +1,6 @@
 module github.com/steelcutops/steelcut
 
-go 1.20
+go 1.21
 
 require (
 	github.com/hashicorp/go-multierror v1.1.1

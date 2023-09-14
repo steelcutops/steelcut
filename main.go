@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"strings"
@@ -12,11 +11,14 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/steelcutops/steelcut/logger"
 	"github.com/steelcutops/steelcut/steelcut"
 
 	"golang.org/x/term"
 	"gopkg.in/ini.v1"
 )
+
+var log = logger.New()
 
 type HostInfo struct {
 	CPUUsage         float64  `json:"cpuUsage"`
@@ -50,11 +52,6 @@ type flags struct {
 }
 
 type hostnamesValue []string
-
-var (
-	logger       = slog.New(slog.NewTextHandler(os.Stderr, nil))
-	programLevel = new(slog.LevelVar) // Info by default
-)
 
 func (h *hostnamesValue) String() string {
 	return strings.Join(*h, ",")
@@ -126,20 +123,20 @@ func monitorHosts(hg *steelcut.HostGroup, f *flags) {
 		for _, host := range hg.Hosts {
 			hostInfo, err := getHostInfo(host)
 			if err != nil {
-				logger.Error("Failed to get host info:", err)
+				log.Error("Failed to get host info:", err)
 				continue
 			}
 
 			if hostInfo.CPUUsage > f.CPUThreshold {
-				logger.Warn("CPU usage on host %s exceeded threshold: %.2f%%", host.Hostname(), hostInfo.CPUUsage)
+				log.Warn("CPU usage on host %s exceeded threshold: %.2f%%", host.Hostname(), hostInfo.CPUUsage)
 			}
 
 			if hostInfo.MemoryUsage > f.MemoryThreshold {
-				logger.Warn("Memory usage on host %s exceeded threshold: %.2f%%", host.Hostname(), hostInfo.MemoryUsage)
+				log.Warn("Memory usage on host %s exceeded threshold: %.2f%%", host.Hostname(), hostInfo.MemoryUsage)
 			}
 
 			if hostInfo.DiskUsage > f.DiskThreshold {
-				logger.Warn("Disk usage on host %s exceeded threshold: %.2f%%", host.Hostname(), hostInfo.DiskUsage)
+				log.Warn("Disk usage on host %s exceeded threshold: %.2f%%", host.Hostname(), hostInfo.DiskUsage)
 			}
 		}
 		hg.RUnlock()
@@ -201,7 +198,7 @@ func processHosts(hg *steelcut.HostGroup, action func(host steelcut.Host) error,
 	if result != nil {
 		// Log all errors
 		for _, err := range result.Errors {
-			log.Printf("Host processing error: %v", err)
+			log.Error("Host processing error: %v", err)
 		}
 		return result // Return the multierror
 	}
@@ -262,15 +259,15 @@ func upgradeAllPackages(host steelcut.Host) error {
 
 func addHosts(hostnames []string, hostGroup *steelcut.HostGroup, options ...steelcut.HostOption) {
 	for _, host := range hostnames {
-		log.Printf("Adding host %s", host)
+		log.Debug("Adding host %s", host)
 		server, err := steelcut.NewHost(host, options...)
 		if err != nil {
-			log.Printf("Failed to create new host: %v", err)
+			log.Error("Failed to create new host: %v", err)
 			continue
 		}
 
 		if err := server.IsReachable(); err != nil {
-			log.Printf("Host %s is not reachable, skipping: %v", host, err)
+			log.Error("Host %s is not reachable, skipping: %v", host, err)
 			continue
 		}
 
@@ -332,7 +329,7 @@ func main() {
 	if f.CheckHealth {
 		err := processHosts(hostGroup, checkHostHealth, f.Concurrency)
 		if err != nil {
-			log.Fatalf("Error during Health Check: %v", err)
+			log.Error("Error during Health Check: %v", err)
 		}
 	}
 
@@ -341,48 +338,48 @@ func main() {
 			return executeCommandOnHost(host, f.ExecCommand)
 		}, f.Concurrency)
 		if err != nil {
-			log.Fatalf("Error during ExecCommand: %v", err)
+			log.Error("Error during ExecCommand: %v", err)
 		}
 	}
 
 	if f.InfoDump {
 		err := processHosts(hostGroup, dumpHostInfo, f.Concurrency)
 		if err != nil {
-			log.Fatalf("Error during InfoDump: %v", err)
+			log.Error("Error during InfoDump: %v", err)
 		}
 	}
 
 	if f.ListPackages {
 		err := processHosts(hostGroup, listAllPackages, f.Concurrency)
 		if err != nil {
-			log.Fatalf("Error during ListPackages: %v", err)
+			log.Error("Error during ListPackages: %v", err)
 		}
 	}
 
 	if f.ListUpgradable {
 		err := processHosts(hostGroup, listUpgradablePackages, f.Concurrency)
 		if err != nil {
-			log.Fatalf("Error during ListUpgradable: %v", err)
+			log.Error("Error during ListUpgradable: %v", err)
 		}
 	}
 
 	if f.UpgradePackages {
 		err := processHosts(hostGroup, upgradeAllPackages, f.Concurrency)
 		if err != nil {
-			log.Fatalf("Error during UpgradePackages: %v", err)
+			log.Error("Error during UpgradePackages: %v", err)
 		}
 	}
 
 	if f.ScriptPath != "" {
 		script, err := readScriptFile(f.ScriptPath)
 		if err != nil {
-			log.Fatalf("Failed to read script file: %v", err)
+			log.Error("Failed to read script file: %v", err)
 		}
 		err = processHosts(hostGroup, func(host steelcut.Host) error {
 			return executeScript(host, script)
 		}, f.Concurrency)
 		if err != nil {
-			log.Fatalf("Error during Script execution: %v", err)
+			log.Error("Error during Script execution: %v", err)
 		}
 	}
 
@@ -393,9 +390,9 @@ func main() {
 
 func configureLogger(f *flags) {
 	if f.Debug {
-		programLevel.Set(slog.LevelDebug)
+		log.SetLevel(slog.LevelDebug)
 	} else {
-		programLevel.Set(slog.LevelInfo)
+		log.SetLevel(slog.LevelInfo)
 	}
 }
 
@@ -404,7 +401,7 @@ func readPasswords(f *flags) (password, keyPass string) {
 		fmt.Print("Enter the password: ")
 		passwordBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
-			log.Fatalf("Failed to read password: %v", err)
+			log.Error("Failed to read password: %v", err)
 		}
 		password = string(passwordBytes)
 		fmt.Println()
@@ -414,7 +411,7 @@ func readPasswords(f *flags) (password, keyPass string) {
 		fmt.Print("Enter the key passphrase: ")
 		keyPassBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
-			log.Fatalf("Failed to read key passphrase: %v", err)
+			log.Error("Failed to read key passphrase: %v", err)
 		}
 		keyPass = string(keyPassBytes)
 		fmt.Println()
@@ -437,7 +434,7 @@ func buildHostOptions(f *flags, password, keyPass string) []steelcut.HostOption 
 		fmt.Print("Enter the sudo password: ")
 		sudoPasswordBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
-			log.Fatalf("Failed to read sudo password: %v", err)
+			log.Error("Failed to read sudo password: %v", err)
 		}
 		sudoPassword := string(sudoPasswordBytes)
 		fmt.Println()
@@ -455,10 +452,10 @@ func initializeHosts(f *flags, options []steelcut.HostOption) *steelcut.HostGrou
 	if f.IniFilePath != "" {
 		hostsMap, err := readHostsFromFile(f.IniFilePath)
 		if err != nil {
-			log.Fatalf("Failed to read INI file: %v", err)
+			log.Error("Failed to read INI file: %v", err)
 		}
 		for group, hosts := range hostsMap {
-			log.Printf("Adding hosts from group %s", group)
+			log.Error("Adding hosts from group %s", group)
 			addHosts(hosts, hostGroup, options...)
 		}
 	}

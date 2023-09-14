@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -44,10 +43,10 @@ func (h LinuxHost) UpgradeAllPackages() ([]Update, error) {
 
 // CheckUpdates checks for available updates for the OS and returns them as a slice of Update objects.
 func (h LinuxHost) CheckUpdates() ([]Update, error) {
-	log.Printf("Checking for OS updates on %s", h.Hostname())
+	log.Info("Checking for OS updates on %s", h.Hostname())
 	updates, err := h.PackageManager.CheckOSUpdates(h.UnixHost)
 	if err != nil {
-		log.Printf("Error checking OS updates: %v", err)
+		log.Info("Error checking OS updates: %v", err)
 		return nil, err
 	}
 

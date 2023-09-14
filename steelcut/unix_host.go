@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,8 +12,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/steelcutops/steelcut/logger"
 	"golang.org/x/crypto/ssh"
 )
+
+var log = logger.New()
 
 // UnixHost represents a Unix-based host system with details like username, password, and connection information.
 type UnixHost struct {
@@ -140,7 +142,7 @@ func (h UnixHost) CopyFile(localPath string, remotePath string) error {
 		return err
 	}
 
-	log.Printf("File copied successfully from '%s' to '%s'\n", localPath, remotePath)
+	log.Info("File copied successfully from '%s' to '%s'\n", localPath, remotePath)
 	return nil
 }
 
@@ -161,7 +163,7 @@ func (h UnixHost) runLocalCommand(cmd string, useSudo bool, sudoPassword string)
 		if sudoPassword == "" {
 			return "", errors.New("sudo: password is required but not provided")
 		}
-		log.Println("Providing sudo password through stdin for local command")
+		log.Debug("Providing sudo password through stdin for local command")
 
 		// Executing the command within a shell
 		command := exec.Command("sudo", "-S", "bash", "-c", cmd)
@@ -177,7 +179,7 @@ func (h UnixHost) runLocalCommand(cmd string, useSudo bool, sudoPassword string)
 			return "", errors.New("sudo: user is not in the sudoers file")
 		}
 		if err != nil {
-			log.Printf("Error running local command with sudo: %v, Output: %s\n", err, outputStr)
+			log.Error("Error running local command with sudo: %v, Output: %s\n", err, outputStr)
 			return "", err
 		}
 		return outputStr, nil
@@ -187,14 +189,14 @@ func (h UnixHost) runLocalCommand(cmd string, useSudo bool, sudoPassword string)
 	command := exec.Command("bash", "-c", cmd)
 	out, err := command.Output()
 	if err != nil {
-		log.Printf("Error running local command: %v\n", err)
+		log.Error("Error running local command: %v\n", err)
 		return "", err
 	}
 	return string(out), nil
 }
 
 func (h UnixHost) runRemoteCommand(cmd string, useSudo bool, sudoPassword string) (string, error) {
-	log.Printf("Value of useSudo: %v", useSudo)
+	log.Debug("Value of useSudo: %v", useSudo)
 	if h.SSHClient == nil {
 		return "", errors.New("SSHClient is not initialized")
 	}
@@ -221,7 +223,7 @@ func (h UnixHost) runRemoteCommand(cmd string, useSudo bool, sudoPassword string
 			return "", errors.New("sudo: password is required but not provided")
 		}
 		cmd = "sudo -S " + cmd
-		log.Println("Providing sudo password through stdin for remote command")
+		log.Debug("Providing sudo password through stdin for remote command")
 		session.Stdin = strings.NewReader(sudoPassword + "\n") // Write password to stdin
 	}
 
@@ -243,13 +245,13 @@ func (h UnixHost) runRemoteCommand(cmd string, useSudo bool, sudoPassword string
 
 				switch status.ExitStatus() {
 				case 100:
-					log.Printf("Status 100 (commonly indicates a package manager error): %s", errorMsg)
+					log.Error("Status 100 (commonly indicates a package manager error): %s", errorMsg)
 				default:
-					log.Printf("%s", errorMsg)
+					log.Error("%s", errorMsg)
 				}
 				return outputStr, errors.New(errorMsg) // Ensure you're returning the detailed error
 			} else {
-				log.Printf("Error running command '%s' over SSH: %v", cmd, result.err)
+				log.Error("Error running command '%s' over SSH: %v", cmd, result.err)
 				return outputStr, result.err
 			}
 		}
@@ -264,7 +266,7 @@ func (h UnixHost) runRemoteCommand(cmd string, useSudo bool, sudoPassword string
 		return outputStr, nil
 
 	case <-time.After(timeout):
-		log.Printf("Command '%s' over SSH timed out after %v.", cmd, timeout)
+		log.Error("Command '%s' over SSH timed out after %v.", cmd, timeout)
 		return "", errors.New("command timed out")
 	}
 }
@@ -273,10 +275,10 @@ func (h UnixHost) getSSHConfig() (*ssh.ClientConfig, error) {
 	var authMethod ssh.AuthMethod
 
 	if h.Password != "" {
-		log.Println("Using password authentication")
+		log.Debug("Using password authentication")
 		authMethod = ssh.Password(h.Password)
 	} else {
-		log.Println("Using public key authentication")
+		log.Debug("Using public key authentication")
 		var keyManager SSHKeyManager
 		if h.KeyPassphrase != "" {
 			keyManager = FileSSHKeyManager{}
@@ -318,7 +320,7 @@ func (h UnixHost) ping() error {
 	if err != nil {
 		return fmt.Errorf("ping test failed: %v", err)
 	}
-	log.Printf("Ping test passed for host '%s'\n", h.Hostname())
+	log.Debug("Ping test passed for host '%s'\n", h.Hostname())
 	return nil
 }
 
@@ -338,6 +340,6 @@ func (h UnixHost) sshable() error {
 		return fmt.Errorf("SSH test failed: %v", err)
 	}
 	client.Close()
-	log.Printf("SSH test passed for host '%s'\n", h.Hostname())
+	log.Debug("SSH test passed for host '%s'\n", h.Hostname())
 	return nil
 }

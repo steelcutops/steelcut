@@ -2,7 +2,6 @@ package steelcut
 
 import (
 	"fmt"
-	"log"
 	"strings"
 )
 
@@ -24,7 +23,6 @@ type Update struct {
 
 type YumPackageManager struct {
 	Executor CommandExecutor
-	Logger   *log.Logger
 }
 
 var registeredPackageManagers = map[OSType]func(host *UnixHost, cmdOptions CommandOptions) Host{
@@ -69,15 +67,15 @@ func (pm YumPackageManager) UpgradePackage(host *UnixHost, pkg string) error {
 }
 
 func (pm YumPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
-	log.Print("Checking for YUM OS updates")
+	log.Info("Checking for YUM OS updates")
 	output, err := pm.Executor.RunCommand("yum check-update", CommandOptions{UseSudo: true})
 	if err != nil {
-		log.Printf("Error checking YUM updates: %v", err)
+		log.Error("Error checking YUM updates: %v", err)
 		return nil, err
 	}
 
 	updates := strings.Split(output, "\n")
-	log.Printf("YUM Updates available: %v", updates)
+	log.Info("YUM Updates available: %v", updates)
 	return updates, nil
 }
 
@@ -93,7 +91,6 @@ func (pm YumPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
 
 type AptPackageManager struct {
 	Executor CommandExecutor
-	Logger   *log.Logger
 }
 
 // ListPackages returns the installed packages.
@@ -159,8 +156,8 @@ func (pm AptPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
 		CommandOptions{UseSudo: true},
 	)
 	if err != nil {
-		log.Fatalf("Failed to update apt: %v", err)
-		return nil, fmt.Errorf("Failed to update apt: %w", err)
+		log.Error("Failed to update apt: %v", err)
+		return nil, fmt.Errorf("failed to update apt: %w", err)
 	}
 
 	output, err := pm.Executor.RunCommand(
@@ -204,7 +201,6 @@ func (pm AptPackageManager) parseAptUpdates(output string) []Update {
 
 type DnfPackageManager struct {
 	Executor CommandExecutor
-	Logger   *log.Logger
 }
 
 func (pm DnfPackageManager) ListPackages(host *UnixHost) ([]string, error) {
@@ -231,15 +227,15 @@ func (pm DnfPackageManager) UpgradePackage(host *UnixHost, pkg string) error {
 }
 
 func (pm DnfPackageManager) CheckOSUpdates(host *UnixHost) ([]string, error) {
-	log.Print("Checking for DNF OS updates")
+	log.Info("Checking for DNF OS updates")
 	output, err := pm.Executor.RunCommand("dnf check-update", CommandOptions{UseSudo: true})
 	if err != nil {
-		log.Printf("Error checking DNF updates: %v", err)
+		log.Info("Error checking DNF updates: %v", err)
 		return nil, err
 	}
 
 	updates := strings.Split(output, "\n")
-	log.Printf("DNF Updates available: %v", updates)
+	log.Info("DNF Updates available: %v", updates)
 	return updates, nil
 }
 
@@ -254,7 +250,6 @@ func (pm DnfPackageManager) UpgradeAll(host *UnixHost) ([]Update, error) {
 
 type BrewPackageManager struct {
 	Executor CommandExecutor
-	Logger   *log.Logger
 }
 
 // ListPackages returns the installed packages.

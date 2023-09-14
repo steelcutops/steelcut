@@ -5,7 +5,6 @@ package steelcut
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"strings"
@@ -161,7 +160,7 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 		unixHost.OSType = osType
 	}
 
-	log.Printf("Detected OS: %s", unixHost.OSType.String())
+	log.Info("Detected OS", "osType", unixHost.OSType.String())
 
 	cmdOptions := CommandOptions{
 		SudoPassword: unixHost.SudoPassword,
