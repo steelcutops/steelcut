@@ -10,6 +10,7 @@ type Logger interface {
 	Debug(msg string, args ...interface{})
 	Warn(msg string, args ...interface{})
 	Error(msg string, args ...interface{})
+	With(args ...interface{}) Logger
 	SetLevel(level slog.Level)
 }
 
@@ -44,6 +45,15 @@ func (l *StdLogger) Warn(msg string, args ...interface{}) {
 
 func (l *StdLogger) Error(msg string, args ...interface{}) {
 	l.internalLogger.Error(msg, args...)
+}
+
+func (l *StdLogger) With(args ...interface{}) Logger {
+	// Here we assume the With method of slog.Logger behaves the same as you've described before
+	newLogger := l.internalLogger.With(args...)
+	return &StdLogger{
+		internalLogger: newLogger,
+		logLevel:       l.logLevel,
+	}
 }
 
 func (l *StdLogger) SetLevel(level slog.Level) {

@@ -121,22 +121,30 @@ func monitorHosts(hg *steelcut.HostGroup, f *flags) {
 	for {
 		hg.RLock()
 		for _, host := range hg.Hosts {
+			hostLogger := log.With("host", host.Hostname()) // Setting up contextual logger
+			hostLogger.Debug("Monitoring host")
 			hostInfo, err := getHostInfo(host)
 			if err != nil {
-				log.Error("Failed to get host info:", err)
+				hostLogger.Error("Failed to get host info", "error", err)
 				continue
 			}
 
 			if hostInfo.CPUUsage > f.CPUThreshold {
-				log.Warn("CPU usage on host %s exceeded threshold: %.2f%%", host.Hostname(), hostInfo.CPUUsage)
+				hostLogger.Info("CPU usage exceeded threshold", "Usage", hostInfo.CPUUsage, "Threshold", f.CPUThreshold)
+			} else {
+				hostLogger.Debug("CPU usage is within threshold", "Usage", hostInfo.CPUUsage, "Threshold", f.CPUThreshold)
 			}
 
 			if hostInfo.MemoryUsage > f.MemoryThreshold {
-				log.Warn("Memory usage on host %s exceeded threshold: %.2f%%", host.Hostname(), hostInfo.MemoryUsage)
+				hostLogger.Warn("Memory usage exceeded threshold", "Usage", hostInfo.MemoryUsage, "Threshold", f.MemoryThreshold)
+			} else {
+				hostLogger.Debug("Memory usage is within threshold", "Usage", hostInfo.MemoryUsage, "Threshold", f.MemoryThreshold)
 			}
 
 			if hostInfo.DiskUsage > f.DiskThreshold {
-				log.Warn("Disk usage on host %s exceeded threshold: %.2f%%", host.Hostname(), hostInfo.DiskUsage)
+				hostLogger.Warn("Disk usage exceeded threshold", "Usage", hostInfo.DiskUsage, "Threshold", f.DiskThreshold)
+			} else {
+				hostLogger.Debug("Disk usage is within threshold", "Usage", hostInfo.DiskUsage, "Threshold", f.DiskThreshold)
 			}
 		}
 		hg.RUnlock()
@@ -259,15 +267,17 @@ func upgradeAllPackages(host steelcut.Host) error {
 
 func addHosts(hostnames []string, hostGroup *steelcut.HostGroup, options ...steelcut.HostOption) {
 	for _, host := range hostnames {
-		log.Debug("Adding host %s", host)
+		log.Debug("Adding host", "host", host)
 		server, err := steelcut.NewHost(host, options...)
 		if err != nil {
-			log.Error("Failed to create new host: %v", err)
+			log.Error("Failed to create new host", "host", host, "error", err)
+
 			continue
 		}
 
 		if err := server.IsReachable(); err != nil {
-			log.Error("Host %s is not reachable, skipping: %v", host, err)
+			log.Error("Host is not reachable", "host", host, "error", err)
+
 			continue
 		}
 
@@ -329,7 +339,7 @@ func main() {
 	if f.CheckHealth {
 		err := processHosts(hostGroup, checkHostHealth, f.Concurrency)
 		if err != nil {
-			log.Error("Error during Health Check: %v", err)
+			log.Error("Error during Health Check", "error", err)
 		}
 	}
 
@@ -338,48 +348,48 @@ func main() {
 			return executeCommandOnHost(host, f.ExecCommand)
 		}, f.Concurrency)
 		if err != nil {
-			log.Error("Error during ExecCommand: %v", err)
+			log.Error("Error during ExecCommand", "error", err)
 		}
 	}
 
 	if f.InfoDump {
 		err := processHosts(hostGroup, dumpHostInfo, f.Concurrency)
 		if err != nil {
-			log.Error("Error during InfoDump: %v", err)
+			log.Error("Error during InfoDump", "error", err)
 		}
 	}
 
 	if f.ListPackages {
 		err := processHosts(hostGroup, listAllPackages, f.Concurrency)
 		if err != nil {
-			log.Error("Error during ListPackages: %v", err)
+			log.Error("Error during ListPackages", "error", err)
 		}
 	}
 
 	if f.ListUpgradable {
 		err := processHosts(hostGroup, listUpgradablePackages, f.Concurrency)
 		if err != nil {
-			log.Error("Error during ListUpgradable: %v", err)
+			log.Error("Error during ListUpgradable", "error", err)
 		}
 	}
 
 	if f.UpgradePackages {
 		err := processHosts(hostGroup, upgradeAllPackages, f.Concurrency)
 		if err != nil {
-			log.Error("Error during UpgradePackages: %v", err)
+			log.Error("Error during UpgradePackages", "error", err)
 		}
 	}
 
 	if f.ScriptPath != "" {
 		script, err := readScriptFile(f.ScriptPath)
 		if err != nil {
-			log.Error("Failed to read script file: %v", err)
+			log.Error("Failed to read script file", "error", err)
 		}
 		err = processHosts(hostGroup, func(host steelcut.Host) error {
 			return executeScript(host, script)
 		}, f.Concurrency)
 		if err != nil {
-			log.Error("Error during Script execution: %v", err)
+			log.Error("Error during Script execution", "error", err)
 		}
 	}
 
@@ -401,7 +411,7 @@ func readPasswords(f *flags) (password, keyPass string) {
 		fmt.Print("Enter the password: ")
 		passwordBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
-			log.Error("Failed to read password: %v", err)
+			log.Error("Failed to read password", "error", err)
 		}
 		password = string(passwordBytes)
 		fmt.Println()
@@ -411,7 +421,7 @@ func readPasswords(f *flags) (password, keyPass string) {
 		fmt.Print("Enter the key passphrase: ")
 		keyPassBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
-			log.Error("Failed to read key passphrase: %v", err)
+			log.Error("Failed to read key passphrase", "error", err)
 		}
 		keyPass = string(keyPassBytes)
 		fmt.Println()
