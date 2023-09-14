@@ -5,13 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/sirupsen/logrus"
 	"github.com/steelcutops/steelcut/steelcut"
 
 	"golang.org/x/term"
@@ -52,7 +52,8 @@ type flags struct {
 type hostnamesValue []string
 
 var (
-	logger = logrus.New()
+	logger       = slog.New(slog.NewTextHandler(os.Stderr, nil))
+	programLevel = new(slog.LevelVar) // Info by default
 )
 
 func (h *hostnamesValue) String() string {
@@ -125,20 +126,20 @@ func monitorHosts(hg *steelcut.HostGroup, f *flags) {
 		for _, host := range hg.Hosts {
 			hostInfo, err := getHostInfo(host)
 			if err != nil {
-				logger.Error(err)
+				logger.Error("Failed to get host info:", err)
 				continue
 			}
 
 			if hostInfo.CPUUsage > f.CPUThreshold {
-				logger.Warnf("CPU usage on host %s exceeded threshold: %.2f%%", host.Hostname(), hostInfo.CPUUsage)
+				logger.Warn("CPU usage on host %s exceeded threshold: %.2f%%", host.Hostname(), hostInfo.CPUUsage)
 			}
 
 			if hostInfo.MemoryUsage > f.MemoryThreshold {
-				logger.Warnf("Memory usage on host %s exceeded threshold: %.2f%%", host.Hostname(), hostInfo.MemoryUsage)
+				logger.Warn("Memory usage on host %s exceeded threshold: %.2f%%", host.Hostname(), hostInfo.MemoryUsage)
 			}
 
 			if hostInfo.DiskUsage > f.DiskThreshold {
-				logger.Warnf("Disk usage on host %s exceeded threshold: %.2f%%", host.Hostname(), hostInfo.DiskUsage)
+				logger.Warn("Disk usage on host %s exceeded threshold: %.2f%%", host.Hostname(), hostInfo.DiskUsage)
 			}
 		}
 		hg.RUnlock()
@@ -391,16 +392,10 @@ func main() {
 }
 
 func configureLogger(f *flags) {
-	file, err := os.OpenFile(f.LogFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-	defer file.Close()
-	logger.SetOutput(file)
 	if f.Debug {
-		logger.SetLevel(logrus.DebugLevel)
+		programLevel.Set(slog.LevelDebug)
 	} else {
-		logger.SetLevel(logrus.InfoLevel)
+		programLevel.Set(slog.LevelInfo)
 	}
 }
 
