@@ -40,7 +40,7 @@ lint:
 
 fmt:
 	@echo "Running gofmt on all .go files..."
-	find . -name '*.go' -exec gofmt -w {} \;
+	find . -name '*.go' -exec gofmt -s -l -w {} \;
 	@echo "Done formatting!"
 
 tidy:
