@@ -5,16 +5,6 @@ import (
 	"strings"
 )
 
-// PackageManager interface defines the methods that package manager implementations must provide.
-type PackageManager interface {
-	ListPackages(*UnixHost) ([]string, error)
-	AddPackage(*UnixHost, string) error
-	RemovePackage(*UnixHost, string) error
-	UpgradePackage(*UnixHost, string) error
-	CheckOSUpdates(host *UnixHost) ([]string, error)
-	UpgradeAll(*UnixHost) ([]Update, error)
-}
-
 // Update represents a package update.
 type Update struct {
 	PackageName string
