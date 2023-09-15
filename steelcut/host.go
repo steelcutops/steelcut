@@ -36,6 +36,9 @@ const (
 	LinuxFedora
 	LinuxRedHat
 	Darwin
+	LinuxCentOS
+	LinuxArch
+	LinuxOpenSUSE
 )
 
 // String method provides the string representation of the OSType.
@@ -47,6 +50,9 @@ func (o OSType) String() string {
 		"Linux_Fedora",
 		"Linux_RedHat",
 		"Darwin",
+		"Linux_CentOS",
+		"Linux_Arch",
+		"Linux_OpenSUSE",
 	}[o]
 }
 
@@ -83,8 +89,14 @@ func detectLinuxType(host *UnixHost) (OSType, error) {
 		return LinuxDebian, nil
 	} else if strings.Contains(osRelease, "ID=fedora") {
 		return LinuxFedora, nil
-	} else if strings.Contains(osRelease, "ID=centos") || strings.Contains(osRelease, "ID=rhel") {
+	} else if strings.Contains(osRelease, "ID=rhel") {
 		return LinuxRedHat, nil
+	} else if strings.Contains(osRelease, "ID=centos") {
+		return LinuxCentOS, nil
+	} else if strings.Contains(osRelease, "ID=arch") {
+		return LinuxArch, nil
+	} else if strings.Contains(osRelease, "ID=opensuse") {
+		return LinuxOpenSUSE, nil
 	}
 
 	return Unknown, fmt.Errorf("unsupported Linux distribution")
