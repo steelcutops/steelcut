@@ -5,4 +5,3 @@ type HostManager interface {
 	SystemInfoOperations
 	ControlOperations
 }
-

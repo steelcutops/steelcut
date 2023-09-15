@@ -58,44 +58,44 @@ type FileManager interface {
 }
 
 type PackageManager interface {
-    ListPackages(host *UnixHost) ([]string, error)
-    AddPackage(host *UnixHost, pkg string) error
-    RemovePackage(host *UnixHost, pkg string) error
-    UpgradePackage(host *UnixHost, pkg string) error
-    CheckOSUpdates(host *UnixHost) ([]string, error)
-    UpgradeAll(host *UnixHost) ([]Update, error)
+	ListPackages(host *UnixHost) ([]string, error)
+	AddPackage(host *UnixHost, pkg string) error
+	RemovePackage(host *UnixHost, pkg string) error
+	UpgradePackage(host *UnixHost, pkg string) error
+	CheckOSUpdates(host *UnixHost) ([]string, error)
+	UpgradeAll(host *UnixHost) ([]Update, error)
 }
 
 type NetworkOperations interface {
-    IsReachable() error
-    ping() error
-    sshable() error
+	IsReachable() error
+	ping() error
+	sshable() error
 }
 
 type HostManagement interface {
-    Hostname() string
-    Reboot() error
-    Shutdown() error
-    CPUUsage() (float64, error)
-    MemoryUsage() (float64, error)
-    RunningProcesses() ([]string, error)
-    DiskUsage() (float64, error)
-    Info() (HostInfo, error)
+	Hostname() string
+	Reboot() error
+	Shutdown() error
+	CPUUsage() (float64, error)
+	MemoryUsage() (float64, error)
+	RunningProcesses() ([]string, error)
+	DiskUsage() (float64, error)
+	Info() (HostInfo, error)
 }
 
 type ServiceOperations interface {
-    EnableService(serviceName string) error
-    StartService(serviceName string) error
-    StopService(serviceName string) error
-    RestartService(serviceName string) error
-    CheckServiceStatus(serviceName string) (string, error)
+	EnableService(serviceName string) error
+	StartService(serviceName string) error
+	StopService(serviceName string) error
+	RestartService(serviceName string) error
+	CheckServiceStatus(serviceName string) (string, error)
 }
 
 type HostInterface interface {
-    PackageManager
-    FileManager
-    NetworkOperations
-    CommandExecutor
-    HostManagement
-    ServiceOperations
+	PackageManager
+	FileManager
+	NetworkOperations
+	CommandExecutor
+	HostManagement
+	ServiceOperations
 }

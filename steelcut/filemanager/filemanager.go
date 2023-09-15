@@ -14,7 +14,7 @@ type FileManager interface {
 // File describes basic file attributes.
 type File struct {
 	Path     string
-	Size     int64  // bytes
+	Size     int64 // bytes
 	Mode     os.FileMode
 	Modified time.Time
 }
