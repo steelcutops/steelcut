@@ -1,22 +1,35 @@
 package commandmanager
 
+import (
+	"context"
+	"time"
+)
+
 // CommandResult encapsulates the results from a command execution.
 type CommandResult struct {
-	STDOUT   string
-	STDERR   string
-	ExitCode int
+	STDOUT    string
+	STDERR    string
+	ExitCode  int
+	Duration  time.Duration
+	Command   string
+	Timestamp time.Time
+}
+
+// CommandConfig holds configurations for command execution.
+type CommandConfig struct {
+	Command string
+	Args    []string
+	Sudo    bool
 }
 
 // CommandManager provides methods to execute commands, both locally and remotely.
 type CommandManager interface {
 	// RunLocal executes a command on the local system.
-	RunLocal(command string, args ...string) (CommandResult, error)
+	RunLocal(ctx context.Context, config CommandConfig) (CommandResult, error)
 
 	// RunRemote executes a command on a remote system via SSH.
-	RunRemote(host, command string, args ...string) (CommandResult, error)
+	RunRemote(ctx context.Context, host string, config CommandConfig) (CommandResult, error)
 
-	// RunRemoteWithTimeout executes a command on a remote system with a timeout.
-	RunRemoteWithTimeout(host, command string, timeout int, args ...string) (CommandResult, error)
-
-	// ... Other methods as needed, like RunBatch, StreamOutput, etc.
+	// Run executes a command on the local system if the host is localhost, otherwise it executes the command on the remote system.
+	Run(ctx context.Context, host string, config CommandConfig) (CommandResult, error)
 }
