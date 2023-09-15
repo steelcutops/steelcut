@@ -172,7 +172,7 @@ func NewHost(hostname string, options ...HostOption) (Host, error) {
 		unixHost.OSType = osType
 	}
 
-	log.Info("Detected OS", "osType", unixHost.OSType.String())
+	log.Info("Detected OS", "hostname", unixHost.Hostname(), "osType", unixHost.OSType.String())
 
 	cmdOptions := CommandOptions{
 		SudoPassword: unixHost.SudoPassword,

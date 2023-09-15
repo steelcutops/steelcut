@@ -84,7 +84,7 @@ func checkHostHealth(host steelcut.Host) error {
 	if err := host.IsReachable(); err != nil {
 		return fmt.Errorf("host %s is not reachable: %v", host.Hostname(), err)
 	}
-	fmt.Printf("Host %s is healthy!\n", host.Hostname())
+	log.Info("Host is healthy", "host", host.Hostname())
 	return nil
 }
 
@@ -261,7 +261,7 @@ func upgradeAllPackages(host steelcut.Host) error {
 	if err != nil {
 		return fmt.Errorf("failed to upgrade packages: %v", err)
 	}
-	fmt.Printf("Upgraded packages on host %s\n", host.Hostname())
+	log.Info("Upgraded packages on host", "host", host.Hostname())
 	return nil
 }
 
