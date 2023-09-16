@@ -19,7 +19,7 @@ type SSHDialer interface {
 	Dial(network, addr string, config *ssh.ClientConfig, timeout time.Duration) (*ssh.Client, error)
 }
 
-type UniversalCommandManager struct {
+type UnixCommandManager struct {
 	Hostname      string
 	SSHClient     SSHDialer
 	Password      string
@@ -27,7 +27,7 @@ type UniversalCommandManager struct {
 	User          string
 }
 
-func (u *UniversalCommandManager) RunLocal(ctx context.Context, config CommandConfig) (CommandResult, error) {
+func (u *UnixCommandManager) RunLocal(ctx context.Context, config CommandConfig) (CommandResult, error) {
 	start := time.Now()
 
 	cmd := exec.CommandContext(ctx, config.Command, config.Args...)
@@ -51,7 +51,7 @@ func (u *UniversalCommandManager) RunLocal(ctx context.Context, config CommandCo
 	}, err
 }
 
-func (c UniversalCommandManager) getSSHConfig() (*ssh.ClientConfig, error) {
+func (c UnixCommandManager) getSSHConfig() (*ssh.ClientConfig, error) {
 	var authMethod ssh.AuthMethod
 
 	if c.Password != "" {
@@ -83,7 +83,7 @@ func (c UniversalCommandManager) getSSHConfig() (*ssh.ClientConfig, error) {
 	}, nil
 }
 
-func (u *UniversalCommandManager) RunRemote(ctx context.Context, host string, config CommandConfig) (CommandResult, error) {
+func (u *UnixCommandManager) RunRemote(ctx context.Context, host string, config CommandConfig) (CommandResult, error) {
 	log.Debug("Executing remote command on host: %s", host)
 
 	if u.SSHClient == nil {
@@ -123,7 +123,28 @@ func (u *UniversalCommandManager) RunRemote(ctx context.Context, host string, co
 
 	outputCh := make(chan CommandResult)
 	go func() {
-		// (Keeping your existing remote command execution logic here...)
+		go func() {
+			var result CommandResult
+
+			// Set up the command to execute remotely
+			var stdout, stderr strings.Builder
+			session.Stdout = &stdout
+			session.Stderr = &stderr
+
+			// Execute command
+			err := session.Run(cmdStr)
+			if err != nil {
+				log.Error("Failed to run command '%s' over SSH: %v", cmdStr, err)
+				result.ExitCode = getExitCode(err)
+			}
+
+			result.STDOUT = stdout.String()
+			result.STDERR = stderr.String()
+
+			// Send the result to the channel
+			outputCh <- result
+		}()
+
 	}()
 
 	select {
@@ -139,14 +160,14 @@ func (u *UniversalCommandManager) RunRemote(ctx context.Context, host string, co
 	}
 }
 
-func (u *UniversalCommandManager) Run(ctx context.Context, host string, config CommandConfig) (CommandResult, error) {
+func (u *UnixCommandManager) Run(ctx context.Context, host string, config CommandConfig) (CommandResult, error) {
 	if u.isLocal() {
 		return u.RunLocal(ctx, config)
 	}
 	return u.RunRemote(ctx, host, config)
 }
 
-func (u *UniversalCommandManager) isLocal() bool {
+func (u *UnixCommandManager) isLocal() bool {
 	return u.Hostname == "localhost" || u.Hostname == "127.0.0.1"
 }
 

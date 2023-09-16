@@ -1,6 +1,7 @@
 package host
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -28,7 +29,6 @@ type ConcreteHost struct {
 	KeyPassphrase string
 	OSType        OSType
 	SudoPassword  string
-	SSHClient     SSHClient
 	HostString    string
 
 	PackageManager packagemanager.PackageManager
@@ -40,17 +40,22 @@ type ConcreteHost struct {
 }
 
 // DetermineOS method for the ConcreteHost
-func (h *ConcreteHost) DetermineOS() (OSType, error) {
-	output, err := h.CommandManager.Run("uname", false)
+func (h *ConcreteHost) DetermineOS(ctx context.Context) (OSType, error) {
+	cmdConfig := commandmanager.CommandConfig{
+		Command: "uname",
+		Sudo:    false,
+	}
+
+	result, err := h.CommandManager.Run(ctx, h.HostString, cmdConfig)
 	if err != nil {
 		return Unknown, fmt.Errorf("failed to run uname: %w", err)
 	}
 
-	osName := strings.TrimSpace(output)
+	osName := strings.TrimSpace(result.STDOUT)
 
 	switch osName {
 	case "Linux":
-		return h.detectLinuxType()
+		return h.detectLinuxType(ctx)
 	case "Darwin":
 		h.OSType = Darwin
 		return Darwin, nil
@@ -60,13 +65,37 @@ func (h *ConcreteHost) DetermineOS() (OSType, error) {
 }
 
 // detectLinuxType method for the ConcreteHost
-func (h *ConcreteHost) detectLinuxType() (OSType, error) {
-	osRelease, err := h.CommandManager.Run("cat /etc/os-release", false)
+func (h *ConcreteHost) detectLinuxType(ctx context.Context) (OSType, error) {
+	cmdConfig := commandmanager.CommandConfig{
+		Command: "cat",
+		Args:    []string{"/etc/os-release"},
+		Sudo:    false,
+	}
+
+	result, err := h.CommandManager.Run(ctx, h.HostString, cmdConfig)
 	if err != nil {
 		return Unknown, fmt.Errorf("failed to retrieve OS release info: %w", err)
 	}
 
-	// ... (rest of the logic remains unchanged)
+	osRelease := result.STDOUT
+
+	if strings.Contains(osRelease, "ID=ubuntu") {
+		return LinuxUbuntu, nil
+	} else if strings.Contains(osRelease, "ID=debian") {
+		return LinuxDebian, nil
+	} else if strings.Contains(osRelease, "ID=fedora") {
+		return LinuxFedora, nil
+	} else if strings.Contains(osRelease, "ID=rhel") {
+		return LinuxRedHat, nil
+	} else if strings.Contains(osRelease, "ID=centos") {
+		return LinuxCentOS, nil
+	} else if strings.Contains(osRelease, "ID=arch") {
+		return LinuxArch, nil
+	} else if strings.Contains(osRelease, "ID=opensuse") {
+		return LinuxOpenSUSE, nil
+	}
+
+	return Unknown, fmt.Errorf("unsupported Linux distribution")
 }
 
 // DefaultOSDetector is a default implementation of the OSDetector interface.
