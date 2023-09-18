@@ -6,6 +6,7 @@ import (
 
 	"github.com/steelcutops/steelcut/steelcut/commandmanager"
 	"github.com/steelcutops/steelcut/steelcut/filemanager"
+	"github.com/steelcutops/steelcut/steelcut/hostmanager"
 )
 
 func NewHost(hostname string) (HostInterface, error) {
@@ -33,7 +34,7 @@ func configureLinuxHost(hostname string) ConcreteHost {
 	return ConcreteHost{
 		CommandManager: cmdManager,
 		FileManager:    &filemanager.UnixFileManager{CommandManager: cmdManager},
-		HostManager:    &LinuxHostManager{},
+		HostManager:    &hostmanager.UnixHostManager{CommandManager: cmdManager},
 		NetworkManager: &LinuxNetworkManager{},
 		ServiceManager: &LinuxServiceManager{},
 		PackageManager: &LinuxPackageManager{},
@@ -46,7 +47,7 @@ func configureMacHost(hostname string) ConcreteHost {
 	return ConcreteHost{
 		CommandManager: cmdManager,
 		FileManager:    &filemanager.UnixFileManager{CommandManager: cmdManager},
-		HostManager:    &DarwinHostManager{},
+		HostManager:    &hostmanager.UnixHostManager{CommandManager: cmdManager},
 		NetworkManager: &DarwinNetworkManager{},
 		ServiceManager: &DarwinServiceManager{},
 		PackageManager: &DarwinPackageManager{},
