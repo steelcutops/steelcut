@@ -32,7 +32,7 @@ func configureLinuxHost(hostname string) ConcreteHost {
 
 	return ConcreteHost{
 		CommandManager: cmdManager,
-		FileManager:    filemanager.NewFileManager(cmdManager),
+		FileManager:    &filemanager.UnixFileManager{CommandManager: cmdManager},
 		HostManager:    &LinuxHostManager{},
 		NetworkManager: &LinuxNetworkManager{},
 		ServiceManager: &LinuxServiceManager{},
@@ -45,7 +45,7 @@ func configureMacHost(hostname string) ConcreteHost {
 
 	return ConcreteHost{
 		CommandManager: cmdManager,
-		FileManager:    filemanager.NewFileManager(cmdManager),
+		FileManager:    &filemanager.UnixFileManager{CommandManager: cmdManager},
 		HostManager:    &DarwinHostManager{},
 		NetworkManager: &DarwinNetworkManager{},
 		ServiceManager: &DarwinServiceManager{},
