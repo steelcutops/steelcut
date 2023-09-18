@@ -1,23 +1,25 @@
 package host
 
 import (
+	"context"
 	"fmt"
+
 	"github.com/steelcutops/steelcut/steelcut/commandmanager"
 	"github.com/steelcutops/steelcut/steelcut/filemanager"
 )
 
-func NewHost() (HostInterface, error) {
+func NewHost(hostname string) (HostInterface, error) {
 	var ch ConcreteHost
-	osType, err := ch.DetermineOS()
+	osType, err := ch.DetermineOS(context.TODO())
 	if err != nil {
 		return nil, err
 	}
 
 	switch osType {
 	case LinuxUbuntu, LinuxDebian, LinuxFedora, LinuxRedHat, LinuxCentOS, LinuxArch, LinuxOpenSUSE:
-		ch = configureLinuxHost()
+		ch = configureLinuxHost(hostname)
 	case Darwin:
-		ch = configureMacHost()
+		ch = configureMacHost(hostname)
 	default:
 		return nil, fmt.Errorf("unsupported operating system: %s", osType)
 	}
@@ -25,10 +27,12 @@ func NewHost() (HostInterface, error) {
 	return &ch, nil
 }
 
-func configureLinuxHost() ConcreteHost {
+func configureLinuxHost(hostname string) ConcreteHost {
+	cmdManager := &commandmanager.UnixCommandManager{Hostname: hostname}
+
 	return ConcreteHost{
-		CommandManager: &commandmanager.UnixCommandManager{},
-		FileManager:    filemanager.NewFileManager("localhost", &commandmanager.UnixCommandManager{}),
+		CommandManager: cmdManager,
+		FileManager:    filemanager.NewFileManager(cmdManager),
 		HostManager:    &LinuxHostManager{},
 		NetworkManager: &LinuxNetworkManager{},
 		ServiceManager: &LinuxServiceManager{},
@@ -36,10 +40,12 @@ func configureLinuxHost() ConcreteHost {
 	}
 }
 
-func configureMacHost() ConcreteHost {
+func configureMacHost(hostname string) ConcreteHost {
+	cmdManager := &commandmanager.UnixCommandManager{Hostname: hostname}
+
 	return ConcreteHost{
-		CommandManager: &commandmanager.UnixCommandManager{},
-		FileManager:    filemanager.NewFileManager("localhost", &commandmanager.UnixCommandManager{}),
+		CommandManager: cmdManager,
+		FileManager:    filemanager.NewFileManager(cmdManager),
 		HostManager:    &DarwinHostManager{},
 		NetworkManager: &DarwinNetworkManager{},
 		ServiceManager: &DarwinServiceManager{},

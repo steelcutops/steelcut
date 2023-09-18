@@ -83,8 +83,8 @@ func (c UnixCommandManager) getSSHConfig() (*ssh.ClientConfig, error) {
 	}, nil
 }
 
-func (u *UnixCommandManager) RunRemote(ctx context.Context, host string, config CommandConfig) (CommandResult, error) {
-	log.Debug("Executing remote command on host: %s", host)
+func (u *UnixCommandManager) RunRemote(ctx context.Context, config CommandConfig) (CommandResult, error) {
+	log.Debug("Executing remote command on host: %s", u.Hostname)
 
 	if u.SSHClient == nil {
 		return CommandResult{}, errors.New("SSHClient is not initialized")
@@ -101,7 +101,7 @@ func (u *UnixCommandManager) RunRemote(ctx context.Context, host string, config 
 		dialTimeout = 15 * time.Minute
 	}
 
-	client, err := u.SSHClient.Dial("tcp", host+":22", sshConfig, dialTimeout)
+	client, err := u.SSHClient.Dial("tcp", u.Hostname+":22", sshConfig, dialTimeout)
 
 	if err != nil {
 		return CommandResult{}, err
@@ -160,11 +160,11 @@ func (u *UnixCommandManager) RunRemote(ctx context.Context, host string, config 
 	}
 }
 
-func (u *UnixCommandManager) Run(ctx context.Context, host string, config CommandConfig) (CommandResult, error) {
+func (u *UnixCommandManager) Run(ctx context.Context, config CommandConfig) (CommandResult, error) {
 	if u.isLocal() {
 		return u.RunLocal(ctx, config)
 	}
-	return u.RunRemote(ctx, host, config)
+	return u.RunRemote(ctx, config)
 }
 
 func (u *UnixCommandManager) isLocal() bool {

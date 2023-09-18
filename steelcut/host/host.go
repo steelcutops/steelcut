@@ -46,7 +46,7 @@ func (h *ConcreteHost) DetermineOS(ctx context.Context) (OSType, error) {
 		Sudo:    false,
 	}
 
-	result, err := h.CommandManager.Run(ctx, h.HostString, cmdConfig)
+	result, err := h.CommandManager.Run(ctx, cmdConfig)
 	if err != nil {
 		return Unknown, fmt.Errorf("failed to run uname: %w", err)
 	}
@@ -72,7 +72,7 @@ func (h *ConcreteHost) detectLinuxType(ctx context.Context) (OSType, error) {
 		Sudo:    false,
 	}
 
-	result, err := h.CommandManager.Run(ctx, h.HostString, cmdConfig)
+	result, err := h.CommandManager.Run(ctx, cmdConfig)
 	if err != nil {
 		return Unknown, fmt.Errorf("failed to retrieve OS release info: %w", err)
 	}

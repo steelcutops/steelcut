@@ -27,7 +27,7 @@ func (f *FileManagerImpl) CreateFile(path string) error {
 		Command: "touch",
 		Args:    []string{path},
 	}
-	result, err := f.commandManager.Run(context.TODO(), f.host, config)
+	result, err := f.commandManager.Run(context.TODO(), config)
 	return handleCommandResult(result, err)
 }
 
@@ -36,7 +36,7 @@ func (f *FileManagerImpl) DeleteFile(path string) error {
 		Command: "rm",
 		Args:    []string{path},
 	}
-	result, err := f.commandManager.Run(context.TODO(), f.host, config)
+	result, err := f.commandManager.Run(context.TODO(), config)
 	return handleCommandResult(result, err)
 }
 
@@ -45,7 +45,7 @@ func (f *FileManagerImpl) MoveFile(sourcePath, destPath string) error {
 		Command: "mv",
 		Args:    []string{sourcePath, destPath},
 	}
-	result, err := f.commandManager.Run(context.TODO(), f.host, config)
+	result, err := f.commandManager.Run(context.TODO(), config)
 	return handleCommandResult(result, err)
 }
 
@@ -54,7 +54,7 @@ func (f *FileManagerImpl) CopyFile(sourcePath, destPath string) error {
 		Command: "cp",
 		Args:    []string{sourcePath, destPath},
 	}
-	result, err := f.commandManager.Run(context.TODO(), f.host, config)
+	result, err := f.commandManager.Run(context.TODO(), config)
 	return handleCommandResult(result, err)
 }
 
@@ -63,7 +63,7 @@ func (f *FileManagerImpl) GetFileAttributes(path string) (File, error) {
 		Command: "stat",
 		Args:    []string{"-c", "%s %F %Y", path}, // Get size, file type, and modification time
 	}
-	result, err := f.commandManager.Run(context.TODO(), f.host, config)
+	result, err := f.commandManager.Run(context.TODO(), config)
 	if err != nil {
 		return File{}, err
 	}

@@ -21,19 +21,14 @@ type DirOperations interface {
 	GetDirAttributes(path string) (Directory, error)
 }
 
-func NewFileManager(host string, commandManager cm.CommandManager) *FileManagerImpl {
-	return &FileManagerImpl{
-		host:           host,
-		commandManager: commandManager,
-	}
-}
 
 func (f *FileManagerImpl) CreateDirectory(path string) error {
 	config := cm.CommandConfig{
 		Command: "mkdir",
 		Args:    []string{path},
 	}
-	_, err := f.commandManager.Run(context.TODO(), f.host, config)
+	_, err := f.commandManager.Run(context.TODO(), config)
+
 	return err
 }
 
@@ -42,7 +37,7 @@ func (f *FileManagerImpl) DeleteDirectory(path string) error {
 		Command: "rm",
 		Args:    []string{"-r", path},
 	}
-	_, err := f.commandManager.Run(context.TODO(), f.host, config)
+	_, err := f.commandManager.Run(context.TODO(), config)
 	return err
 }
 
@@ -51,7 +46,7 @@ func (f *FileManagerImpl) MoveDirectory(sourcePath, destPath string) error {
 		Command: "mv",
 		Args:    []string{sourcePath, destPath},
 	}
-	_, err := f.commandManager.Run(context.TODO(), f.host, config)
+	_, err := f.commandManager.Run(context.TODO(), config)
 	return err
 }
 
@@ -60,7 +55,7 @@ func (f *FileManagerImpl) CopyDirectory(sourcePath, destPath string) error {
 		Command: "cp",
 		Args:    []string{"-r", sourcePath, destPath},
 	}
-	_, err := f.commandManager.Run(context.TODO(), f.host, config)
+	_, err := f.commandManager.Run(context.TODO(), config)
 	return err
 }
 
@@ -69,7 +64,7 @@ func (f *FileManagerImpl) ListDirectory(path string) ([]string, error) {
 		Command: "ls",
 		Args:    []string{path},
 	}
-	result, err := f.commandManager.Run(context.TODO(), f.host, config)
+	result, err := f.commandManager.Run(context.TODO(), config)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +80,7 @@ func (f *FileManagerImpl) GetDirAttributes(path string) (Directory, error) {
 		Command: "stat",
 		Args:    []string{"-c", "%F %Y %a", path}, // Get file type, modification time, and mode
 	}
-	result, err := f.commandManager.Run(context.TODO(), f.host, config)
+	result, err := f.commandManager.Run(context.TODO(), config)
 	if err != nil {
 		return Directory{}, err
 	}

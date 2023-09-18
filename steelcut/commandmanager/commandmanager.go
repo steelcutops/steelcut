@@ -28,8 +28,8 @@ type CommandManager interface {
 	RunLocal(ctx context.Context, config CommandConfig) (CommandResult, error)
 
 	// RunRemote executes a command on a remote system via SSH.
-	RunRemote(ctx context.Context, host string, config CommandConfig) (CommandResult, error)
+	RunRemote(ctx context.Context, config CommandConfig) (CommandResult, error)
 
 	// Run executes a command on the local system if the host is localhost, otherwise it executes the command on the remote system.
-	Run(ctx context.Context, host string, config CommandConfig) (CommandResult, error)
+	Run(ctx context.Context, config CommandConfig) (CommandResult, error)
 }

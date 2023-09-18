@@ -31,10 +31,13 @@ type Directory struct {
 
 type FileManagerImpl struct {
 	commandManager cm.CommandManager
-	host           string
 }
 
-// Utility
+func NewFileManager(commandManager cm.CommandManager) *FileManagerImpl {
+	return &FileManagerImpl{
+		commandManager: commandManager,
+	}
+}
 
 func handleCommandResult(result cm.CommandResult, err error) error {
 	if err != nil {
