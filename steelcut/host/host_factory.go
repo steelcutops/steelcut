@@ -3,15 +3,15 @@ package host
 import (
 	"fmt"
 	"github.com/steelcutops/steelcut/steelcut/commandmanager"
+	"github.com/steelcutops/steelcut/steelcut/filemanager"
 )
 
 func NewHost() (HostInterface, error) {
-	osType, err := DetermineOS()
+	var ch ConcreteHost
+	osType, err := ch.DetermineOS()
 	if err != nil {
 		return nil, err
 	}
-
-	var ch ConcreteHost
 
 	switch osType {
 	case LinuxUbuntu, LinuxDebian, LinuxFedora, LinuxRedHat, LinuxCentOS, LinuxArch, LinuxOpenSUSE:
@@ -28,7 +28,7 @@ func NewHost() (HostInterface, error) {
 func configureLinuxHost() ConcreteHost {
 	return ConcreteHost{
 		CommandManager: &commandmanager.UnixCommandManager{},
-		FileManager:    &LinuxFileManager{},
+		FileManager:    filemanager.NewFileManager("localhost", &commandmanager.UnixCommandManager{}),
 		HostManager:    &LinuxHostManager{},
 		NetworkManager: &LinuxNetworkManager{},
 		ServiceManager: &LinuxServiceManager{},
@@ -39,7 +39,7 @@ func configureLinuxHost() ConcreteHost {
 func configureMacHost() ConcreteHost {
 	return ConcreteHost{
 		CommandManager: &commandmanager.UnixCommandManager{},
-		FileManager:    &DarwinFileManager{},
+		FileManager:    filemanager.NewFileManager("localhost", &commandmanager.UnixCommandManager{}),
 		HostManager:    &DarwinHostManager{},
 		NetworkManager: &DarwinNetworkManager{},
 		ServiceManager: &DarwinServiceManager{},

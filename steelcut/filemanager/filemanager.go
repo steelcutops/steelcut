@@ -1,8 +1,11 @@
 package filemanager
 
 import (
+	"errors"
 	"os"
 	"time"
+
+	cm "github.com/steelcutops/steelcut/steelcut/commandmanager"
 )
 
 // FileManager encompasses operations on both files and directories.
@@ -24,4 +27,21 @@ type Directory struct {
 	Path     string
 	Mode     os.FileMode
 	Modified time.Time
+}
+
+type FileManagerImpl struct {
+	commandManager cm.CommandManager
+	host           string
+}
+
+// Utility
+
+func handleCommandResult(result cm.CommandResult, err error) error {
+	if err != nil {
+		return err
+	}
+	if result.ExitCode != 0 {
+		return errors.New(result.STDERR)
+	}
+	return nil
 }
