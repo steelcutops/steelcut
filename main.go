@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -13,6 +14,10 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/steelcutops/steelcut/logger"
 	"github.com/steelcutops/steelcut/steelcut"
+	"github.com/steelcutops/steelcut/steelcut/commandmanager"
+	"github.com/steelcutops/steelcut/steelcut/filemanager"
+	"github.com/steelcutops/steelcut/steelcut/host"
+	"github.com/steelcutops/steelcut/steelcut/hostgroup"
 
 	"golang.org/x/term"
 	"gopkg.in/ini.v1"
@@ -21,10 +26,10 @@ import (
 var log = logger.New()
 
 type HostInfo struct {
-	CPUUsage         float64  `json:"cpuUsage"`
-	DiskUsage        float64  `json:"diskUsage"`
-	MemoryUsage      float64  `json:"memoryUsage"`
-	RunningProcesses []string `json:"runningProcesses"`
+	CPUUsage         float64                   `json:"cpuUsage"`
+	DiskUsageDetails filemanager.DiskUsageInfo `json:"diskUsageDetails"`
+	MemoryUsage      int64                     `json:"memoryUsage"`
+	RunningProcesses []string                  `json:"runningProcesses"`
 }
 
 type flags struct {
@@ -80,11 +85,14 @@ func readHostsFromFile(filePath string) (map[string][]string, error) {
 	return hosts, nil
 }
 
-func checkHostHealth(host steelcut.Host) error {
-	if err := host.IsReachable(); err != nil {
-		return fmt.Errorf("host %s is not reachable: %v", host.Hostname(), err)
+func checkHostHealth(host *host.Host) error {
+	// Ping the host
+	result, err := host.NetworkManager.Ping(host.Hostname)
+	if err != nil || !result.Success {
+		return fmt.Errorf("host %s is not reachable: %v", host.Hostname, err)
 	}
-	log.Info("Host is healthy", "host", host.Hostname())
+
+	log.Info("Host %s is healthy with RTT: %f ms", host.Hostname, result.RTT)
 	return nil
 }
 
@@ -117,11 +125,11 @@ func parseFlags() *flags {
 	return f
 }
 
-func monitorHosts(hg *steelcut.HostGroup, f *flags) {
+func monitorHosts(hg *hostgroup.HostGroup, f *flags) {
 	for {
 		hg.RLock()
 		for _, host := range hg.Hosts {
-			hostLogger := log.With("host", host.Hostname()) // Setting up contextual logger
+			hostLogger := log.With("host", host.Hostname) // Setting up contextual logger
 			hostLogger.Debug("Monitoring host")
 			hostInfo, err := getHostInfo(host)
 			if err != nil {
@@ -161,36 +169,51 @@ func readScriptFile(path string) (string, error) {
 	return string(bytes), nil
 }
 
-func executeScript(host steelcut.Host, script string) error {
-	commandOptions := steelcut.CommandOptions{
-		UseSudo: false,
+func executeScript(host *host.Host, script string) error {
+	// Use the context with a reasonable timeout; you can adjust this as needed.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	// Create the CommandConfig
+	config := commandmanager.CommandConfig{
+		Command: script,
+		Sudo:    false,
 	}
 
-	result, err := host.RunCommand(script, commandOptions)
+	// Use the CommandManager embedded in the host.Host struct
+	result, err := host.CommandManager.Run(ctx, config)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Output of script on host %s:\n%s\n", host.Hostname(), result)
+
+	// Print the output
+	fmt.Printf("Output of script on host %s:\n%s\n", host.Hostname, result.STDOUT)
+
+	// Check for errors in STDERR if necessary
+	if result.STDERR != "" {
+		fmt.Printf("Errors: %s\n", result.STDERR)
+	}
+
 	return nil
 }
 
-func processHosts(hg *steelcut.HostGroup, action func(host steelcut.Host) error, maxConcurrency int) error {
+func processHosts(hg *hostgroup.HostGroup, action func(h *host.Host) error, maxConcurrency int) error {
 	sem := make(chan struct{}, maxConcurrency) // Create semaphore with buffer size equal to max concurrency
 	errCh := make(chan error, len(hg.Hosts))
 	var wg sync.WaitGroup
 
 	hg.RLock()
-	for _, host := range hg.Hosts {
+	for _, hst := range hg.Hosts {
 		wg.Add(1) // Increment wait group counter
-		go func(h steelcut.Host) {
+		go func(h *host.Host) {
 			defer wg.Done()          // Decrement wait group counter when done
 			sem <- struct{}{}        // Acquire token
 			defer func() { <-sem }() // Release token
 
 			if err := action(h); err != nil {
-				errCh <- fmt.Errorf("error while processing host %s: %w", h.Hostname(), err)
+				errCh <- fmt.Errorf("error while processing host %s: %w", h.Hostname, err)
 			}
-		}(host)
+		}(hst)
 	}
 	hg.RUnlock()
 
@@ -214,7 +237,7 @@ func processHosts(hg *steelcut.HostGroup, action func(host steelcut.Host) error,
 	return nil
 }
 
-func dumpHostInfo(host steelcut.Host) error {
+func dumpHostInfo(host host.Host) error {
 	hostInfo, err := getHostInfo(host)
 	if err != nil {
 		return err
@@ -226,14 +249,14 @@ func dumpHostInfo(host steelcut.Host) error {
 	}
 
 	// Use the hostname to create a unique file name for each host
-	fileName := fmt.Sprintf("host_info_%s.json", host.Hostname())
+	fileName := fmt.Sprintf("host_info_%s.json", host.Hostname)
 
 	err = os.WriteFile(fileName, b, 0644)
 	return err
 }
 
-func listAllPackages(host steelcut.Host) error {
-	packages, err := host.ListPackages()
+func listAllPackages(host host.Host) error {
+	packages, err := host.PackageManager.ListPackages()
 	if err != nil {
 		return fmt.Errorf("failed to list packages: %v", err)
 	}
@@ -244,8 +267,8 @@ func listAllPackages(host steelcut.Host) error {
 	return nil
 }
 
-func listUpgradablePackages(host steelcut.Host) error {
-	upgradable, err := host.CheckUpdates()
+func listUpgradablePackages(host host.Host) error {
+	upgradable, err := host.PackageManager.CheckOSUpdates()
 	if err != nil {
 		return fmt.Errorf("failed to check OS updates: %v", err)
 	}
@@ -256,12 +279,12 @@ func listUpgradablePackages(host steelcut.Host) error {
 	return nil
 }
 
-func upgradeAllPackages(host steelcut.Host) error {
-	_, err := host.UpgradeAllPackages()
+func upgradeAllPackages(host host.Host) error {
+	_, err := host.PackageManager.UpgradeAll()
 	if err != nil {
 		return fmt.Errorf("failed to upgrade packages: %v", err)
 	}
-	log.Info("Upgraded packages on host", "host", host.Hostname())
+	log.Info("Upgraded packages on host", "host", host.Hostname)
 	return nil
 }
 
@@ -285,45 +308,60 @@ func addHosts(hostnames []string, hostGroup *steelcut.HostGroup, options ...stee
 	}
 }
 
-func executeCommandOnHost(host steelcut.Host, command string) error {
-	commandOptions := steelcut.CommandOptions{
-		UseSudo: false,
+func executeCommandOnHost(host *host.Host, command string) error {
+	// Use the context with a reasonable timeout; you can adjust this as needed.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	// Create the CommandConfig
+	config := commandmanager.CommandConfig{
+		Command: command,
+		Sudo:    false,
 	}
 
-	result, err := host.RunCommand(command, commandOptions)
+	// Use the CommandManager embedded in the host.Host struct
+	result, err := host.CommandManager.Run(ctx, config)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Output of command on host %s:\n%s\n", host.Hostname(), result)
+
+	// Print the output
+	fmt.Printf("Output of command on host %s:\n%s\n", host.Hostname, result.STDOUT)
+
+	// Check for errors in STDERR if necessary
+	if result.STDERR != "" {
+		fmt.Printf("Errors: %s\n", result.STDERR)
+	}
+
 	return nil
 }
 
-func getHostInfo(host steelcut.Host) (HostInfo, error) {
-	cpuUsage, err := host.CPUUsage()
+func getHostInfo(host host.Host) (HostInfo, error) {
+	cpuUsage, err := host.HostManager.CPUUsage()
 	if err != nil {
 		return HostInfo{}, err
 	}
 
-	memoryUsage, err := host.MemoryUsage()
+	memoryUsage, err := host.HostManager.FreeMemory()
 	if err != nil {
 		return HostInfo{}, err
 	}
 
-	diskUsage, err := host.DiskUsage()
+	diskUsageDetails, err := host.FileManager.DiskUsage("/")
 	if err != nil {
 		return HostInfo{}, err
 	}
 
-	runningProcesses, err := host.RunningProcesses()
+	runningProcesses, err := host.HostManager.Processes()
 	if err != nil {
 		return HostInfo{}, err
 	}
 
 	return HostInfo{
-		CPUUsage:         cpuUsage,
-		DiskUsage:        diskUsage,
-		MemoryUsage:      memoryUsage,
-		RunningProcesses: runningProcesses,
+		CPUUsage:          cpuUsage,
+		DiskUsageDetails:  diskUsageDetails,
+		MemoryUsage:       memoryUsage,
+		RunningProcesses:  runningProcesses,
 	}, nil
 }
 

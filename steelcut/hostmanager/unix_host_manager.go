@@ -191,3 +191,52 @@ func (uhm *UnixHostManager) TotalMemory() (int64, error) {
 
 	return 0, errors.New("could not find MemTotal in /proc/meminfo")
 }
+
+// CPUUsage retrieves the CPU usage percentage.
+func (uhm *UnixHostManager) CPUUsage() (float64, error) {
+	// Using vmstat to get CPU idle time. Parsing the 15th column for idle percentage.
+	output, err := uhm.CommandManager.Run(context.TODO(), cm.CommandConfig{
+		Command: "vmstat",
+		Args:    []string{"1", "2"},
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	lines := strings.Split(strings.TrimSpace(output.STDOUT), "\n")
+	if len(lines) < 3 {
+		return 0, errors.New("unexpected output from vmstat")
+	}
+
+	fields := strings.Fields(lines[2])
+	if len(fields) < 15 {
+		return 0, errors.New("unexpected number of columns in vmstat output")
+	}
+
+	idle, err := strconv.ParseFloat(fields[14], 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return 100.0 - idle, nil
+}
+
+// Processes retrieves a list of running processes.
+func (uhm *UnixHostManager) Processes() ([]string, error) {
+	// Using ps command to get a list of processes.
+	output, err := uhm.CommandManager.Run(context.TODO(), cm.CommandConfig{
+		Command: "ps",
+		Args:    []string{"-e"},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(strings.TrimSpace(output.STDOUT), "\n")
+	// Removing the header line from ps output
+	if len(lines) > 0 {
+		lines = lines[1:]
+	}
+
+	return lines, nil
+}

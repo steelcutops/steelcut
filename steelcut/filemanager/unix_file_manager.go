@@ -19,6 +19,7 @@ type DirOperations interface {
 	CopyDirectory(sourcePath, destPath string) error
 	ListDirectory(path string) ([]string, error)
 	GetDirAttributes(path string) (Directory, error)
+	DiskUsage(path string) (DiskUsageInfo, error)
 }
 
 // FileOperations represents operations that can be performed on files.
@@ -207,5 +208,54 @@ func (ufm *UnixFileManager) GetFileAttributes(path string) (File, error) {
 		Size:     size,
 		Mode:     mode,
 		Modified: modified,
+	}, nil
+}
+
+func (ufm *UnixFileManager) DiskUsage(path string) (DiskUsageInfo, error) {
+	config := cm.CommandConfig{
+		Command: "df",
+		Args:    []string{"-B1", path}, // -B1 ensures output in bytes
+	}
+	result, err := ufm.CommandManager.Run(context.TODO(), config)
+	if err != nil {
+		return DiskUsageInfo{}, err
+	}
+
+	lines := strings.Split(strings.TrimSpace(result.STDOUT), "\n")
+	if len(lines) < 2 {
+		return DiskUsageInfo{}, fmt.Errorf("unexpected df output format: %s", result.STDOUT)
+	}
+
+	columns := strings.Fields(lines[1])
+	if len(columns) < 5 {
+		return DiskUsageInfo{}, fmt.Errorf("unexpected df columns count: %s", lines[1])
+	}
+
+	total, err := strconv.ParseInt(columns[1], 10, 64)
+	if err != nil {
+		return DiskUsageInfo{}, fmt.Errorf("error parsing total space: %v", err)
+	}
+
+	used, err := strconv.ParseInt(columns[2], 10, 64)
+	if err != nil {
+		return DiskUsageInfo{}, fmt.Errorf("error parsing used space: %v", err)
+	}
+
+	available, err := strconv.ParseInt(columns[3], 10, 64)
+	if err != nil {
+		return DiskUsageInfo{}, fmt.Errorf("error parsing available space: %v", err)
+	}
+
+	usePercentStr := strings.TrimRight(columns[4], "%")
+	usePercent, err := strconv.ParseFloat(usePercentStr, 64)
+	if err != nil {
+		return DiskUsageInfo{}, fmt.Errorf("error parsing usage percentage: %v", err)
+	}
+
+	return DiskUsageInfo{
+		Total:      total,
+		Used:       used,
+		Available:  available,
+		UsePercent: usePercent,
 	}, nil
 }

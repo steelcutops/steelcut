@@ -20,4 +20,6 @@ type HostManager interface {
 	FreeMemory() (int64, error)  // Return free memory in bytes
 	Reboot() error
 	Shutdown() error
+	CPUUsage() (float64, error)   // Return CPU usage as a percentage
+	Processes() ([]string, error) // Return a list of running processes
 }

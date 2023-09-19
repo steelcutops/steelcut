@@ -22,6 +22,13 @@ type File struct {
 	Modified time.Time
 }
 
+type DiskUsageInfo struct {
+	Total      int64   // total space in bytes
+	Used       int64   // used space in bytes
+	Available  int64   // available space in bytes
+	UsePercent float64 // usage percentage
+}
+
 // Directory describes basic directory attributes.
 type Directory struct {
 	Path     string
