@@ -13,15 +13,6 @@ import (
 	"github.com/steelcutops/steelcut/steelcut/servicemanager"
 )
 
-type HostInterface interface {
-	commandmanager.CommandManager
-	filemanager.FileManager
-	hostmanager.HostManager
-	networkmanager.NetworkManager
-	servicemanager.ServiceManager
-	packagemanager.PackageManager
-}
-
 // ConcreteHost will be the main implementation for both Darwin and Linux.
 type ConcreteHost struct {
 	User          string

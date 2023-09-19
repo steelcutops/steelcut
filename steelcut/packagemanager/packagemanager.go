@@ -6,5 +6,5 @@ type PackageManager interface {
 	RemovePackage(pkg string) error
 	UpgradePackage(pkg string) error
 	CheckOSUpdates() ([]string, error)
-	//UpgradeAll() ([]Update, error)
+	UpgradeAll() ([]string, error)
 }

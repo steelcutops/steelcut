@@ -22,3 +22,5 @@ go.work
 
 # Binary directory
 bin/
+
+inventory.ini

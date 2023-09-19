@@ -30,7 +30,6 @@ type FileOperations interface {
 	GetFileAttributes(path string) (File, error)
 }
 
-
 type UnixFileManager struct {
 	CommandManager *cm.UnixCommandManager
 }

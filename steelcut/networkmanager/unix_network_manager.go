@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	cm "github.com/steelcutops/steelcut/steelcut/commandmanager"
 	"regexp"
 	"strconv"
-	cm "github.com/steelcutops/steelcut/steelcut/commandmanager"
 )
 
 type UnixNetworkManager struct {

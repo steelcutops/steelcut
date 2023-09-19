@@ -3,11 +3,11 @@ package hostmanager
 import "time"
 
 type HostInfo struct {
-	Hostname       string
-	OSVersion      string
-	KernelVersion  string
-	Uptime         string
-	NumberOfCores  int
+	Hostname      string
+	OSVersion     string
+	KernelVersion string
+	Uptime        string
+	NumberOfCores int
 }
 
 // HostManager encompasses operations related to host management.

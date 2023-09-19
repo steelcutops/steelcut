@@ -8,10 +8,16 @@ import (
 	"github.com/steelcutops/steelcut/steelcut/filemanager"
 	"github.com/steelcutops/steelcut/steelcut/hostmanager"
 	"github.com/steelcutops/steelcut/steelcut/networkmanager"
+	"github.com/steelcutops/steelcut/steelcut/packagemanager"
+	"github.com/steelcutops/steelcut/steelcut/servicemanager"
 )
 
-func NewHost(hostname string) (HostInterface, error) {
-	var ch ConcreteHost
+func NewHost(hostname string) (*ConcreteHost, error) {
+	ch := &ConcreteHost{}
+
+	// Initializing the CommandManager is required before determining the OS
+	ch.CommandManager = &commandmanager.UnixCommandManager{Hostname: hostname}
+
 	osType, err := ch.DetermineOS(context.TODO())
 	if err != nil {
 		return nil, err
@@ -19,38 +25,46 @@ func NewHost(hostname string) (HostInterface, error) {
 
 	switch osType {
 	case LinuxUbuntu, LinuxDebian, LinuxFedora, LinuxRedHat, LinuxCentOS, LinuxArch, LinuxOpenSUSE:
-		ch = configureLinuxHost(hostname)
+		configureLinuxHost(ch, hostname, osType)
 	case Darwin:
-		ch = configureMacHost(hostname)
+		configureMacHost(ch, hostname)
 	default:
 		return nil, fmt.Errorf("unsupported operating system: %s", osType)
 	}
 
-	return &ch, nil
+	return ch, nil
 }
 
-func configureLinuxHost(hostname string) ConcreteHost {
+func configureLinuxHost(ch *ConcreteHost, hostname string, osType OSType) {
 	cmdManager := &commandmanager.UnixCommandManager{Hostname: hostname}
+	var pkgManager packagemanager.PackageManager
 
-	return ConcreteHost{
-		CommandManager: cmdManager,
-		FileManager:    &filemanager.UnixFileManager{CommandManager: cmdManager},
-		HostManager:    &hostmanager.UnixHostManager{CommandManager: cmdManager},
-		NetworkManager: &networkmanager.UnixNetworkManager{CommandManager: cmdManager},
-		ServiceManager: &LinuxServiceManager{},
-		PackageManager: &LinuxPackageManager{},
+	switch osType {
+	case LinuxUbuntu, LinuxDebian:
+		pkgManager = &packagemanager.AptPackageManager{CommandManager: cmdManager}
+	case LinuxFedora:
+		pkgManager = &packagemanager.DnfPackageManager{CommandManager: cmdManager}
+	case LinuxRedHat, LinuxCentOS:
+		pkgManager = &packagemanager.YumPackageManager{CommandManager: cmdManager}
+	default:
+		pkgManager = nil
 	}
+
+	ch.CommandManager = cmdManager
+	ch.FileManager = &filemanager.UnixFileManager{CommandManager: cmdManager}
+	ch.HostManager = &hostmanager.UnixHostManager{CommandManager: cmdManager}
+	ch.NetworkManager = &networkmanager.UnixNetworkManager{CommandManager: cmdManager}
+	ch.ServiceManager = &servicemanager.LinuxServiceManager{CommandManager: cmdManager}
+	ch.PackageManager = pkgManager
 }
 
-func configureMacHost(hostname string) ConcreteHost {
+func configureMacHost(ch *ConcreteHost, hostname string) {
 	cmdManager := &commandmanager.UnixCommandManager{Hostname: hostname}
 
-	return ConcreteHost{
-		CommandManager: cmdManager,
-		FileManager:    &filemanager.UnixFileManager{CommandManager: cmdManager},
-		HostManager:    &hostmanager.UnixHostManager{CommandManager: cmdManager},
-		NetworkManager: &networkmanager.UnixNetworkManager{CommandManager: cmdManager},
-		ServiceManager: &DarwinServiceManager{},
-		PackageManager: &DarwinPackageManager{},
-	}
+	ch.CommandManager = cmdManager
+	ch.FileManager = &filemanager.UnixFileManager{CommandManager: cmdManager}
+	ch.HostManager = &hostmanager.UnixHostManager{CommandManager: cmdManager}
+	ch.NetworkManager = &networkmanager.UnixNetworkManager{CommandManager: cmdManager}
+	ch.ServiceManager = &servicemanager.DarwinServiceManager{CommandManager: cmdManager}
+	ch.PackageManager = &packagemanager.BrewPackageManager{CommandManager: cmdManager}
 }

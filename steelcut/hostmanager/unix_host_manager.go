@@ -1,8 +1,8 @@
 package hostmanager
 
 import (
-	"errors"
 	"context"
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -48,11 +48,11 @@ func (uhm *UnixHostManager) Info() (HostInfo, error) {
 	}
 
 	return HostInfo{
-		Hostname:       hostname,
-		OSVersion:      strings.TrimSpace(osVersionOutput.STDOUT),
-		KernelVersion:  strings.TrimSpace(kernelVersionOutput.STDOUT),
-		Uptime:         uptime.String(),
-		NumberOfCores:  cpuCount,
+		Hostname:      hostname,
+		OSVersion:     strings.TrimSpace(osVersionOutput.STDOUT),
+		KernelVersion: strings.TrimSpace(kernelVersionOutput.STDOUT),
+		Uptime:        uptime.String(),
+		NumberOfCores: cpuCount,
 	}, nil
 }
 
@@ -149,7 +149,7 @@ func (uhm *UnixHostManager) FreeMemory() (int64, error) {
 			if err != nil {
 				return 0, err
 			}
-			
+
 			// Convert KB to bytes
 			return kbValue * 1024, nil
 		}
@@ -183,7 +183,7 @@ func (uhm *UnixHostManager) TotalMemory() (int64, error) {
 			if err != nil {
 				return 0, err
 			}
-			
+
 			// Convert KB to bytes
 			return kbValue * 1024, nil
 		}
