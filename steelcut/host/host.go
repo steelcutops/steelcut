@@ -13,7 +13,6 @@ import (
 	"github.com/steelcutops/steelcut/steelcut/servicemanager"
 )
 
-// ConcreteHost will be the main implementation for both Darwin and Linux.
 type ConcreteHost struct {
 	User          string
 	Password      string
