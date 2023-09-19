@@ -3,6 +3,7 @@ package host
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/steelcutops/steelcut/steelcut/commandmanager"
 	"github.com/steelcutops/steelcut/steelcut/filemanager"
@@ -13,33 +14,45 @@ import (
 )
 
 func NewHost(hostname string, options ...HostOption) (*Host, error) {
-    ch := &Host{}
+	ch := &Host{}
 
-    // Apply each HostOption
-    for _, option := range options {
-        option(ch)
-    }
+	// Apply each HostOption
+	for _, option := range options {
+		option(ch)
+	}
 
-    // Initializing the CommandManager is required before determining the OS
-    ch.CommandManager = &commandmanager.UnixCommandManager{Hostname: hostname}
+	// If SudoPassword hasn't been set, check environment variables for it
+	if ch.SudoPassword == "" {
+		steelcutBecomePass := os.Getenv("STEELCUT_BECOME_PASS")
+		if steelcutBecomePass != "" {
+			ch.SudoPassword = steelcutBecomePass
+		} else {
+			ansibleBecomePass := os.Getenv("ANSIBLE_BECOME_PASS")
+			if ansibleBecomePass != "" {
+				ch.SudoPassword = ansibleBecomePass
+			}
+		}
+	}
 
-    osType, err := ch.DetermineOS(context.TODO())
-    if err != nil {
-        return nil, err
-    }
+	// Initializing the CommandManager is required before determining the OS
+	ch.CommandManager = &commandmanager.UnixCommandManager{Hostname: hostname}
 
-    switch osType {
-    case LinuxUbuntu, LinuxDebian, LinuxFedora, LinuxRedHat, LinuxCentOS, LinuxArch, LinuxOpenSUSE:
-        configureLinuxHost(ch, hostname, osType)
-    case Darwin:
-        configureMacHost(ch, hostname)
-    default:
-        return nil, fmt.Errorf("unsupported operating system: %s", osType)
-    }
+	osType, err := ch.DetermineOS(context.TODO())
+	if err != nil {
+		return nil, err
+	}
 
-    return ch, nil
+	switch osType {
+	case LinuxUbuntu, LinuxDebian, LinuxFedora, LinuxRedHat, LinuxCentOS, LinuxArch, LinuxOpenSUSE:
+		configureLinuxHost(ch, hostname, osType)
+	case Darwin:
+		configureMacHost(ch, hostname)
+	default:
+		return nil, fmt.Errorf("unsupported operating system: %s", osType)
+	}
+
+	return ch, nil
 }
-
 
 func configureLinuxHost(ch *Host, hostname string, osType OSType) {
 	cmdManager := &commandmanager.UnixCommandManager{Hostname: hostname}
