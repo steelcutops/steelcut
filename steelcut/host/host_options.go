@@ -36,4 +36,3 @@ func WithSudoPassword(password string) HostOption {
 		host.SudoPassword = password
 	}
 }
-
