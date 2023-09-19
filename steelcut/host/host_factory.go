@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/user"
 
 	"github.com/steelcutops/steelcut/steelcut/commandmanager"
 	"github.com/steelcutops/steelcut/steelcut/filemanager"
@@ -19,6 +20,15 @@ func NewHost(hostname string, options ...HostOption) (*Host, error) {
 	// Apply each HostOption
 	for _, option := range options {
 		option(ch)
+	}
+
+	// If User hasn't been set, set it to the username of the current user
+	if ch.User == "" {
+		currentUser, err := user.Current()
+		if err != nil {
+			return nil, fmt.Errorf("could not get current user: %v", err)
+		}
+		ch.User = currentUser.Username
 	}
 
 	// If SudoPassword hasn't been set, check environment variables for it
