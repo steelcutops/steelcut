@@ -30,6 +30,24 @@ type ConcreteHost struct {
 	CommandManager commandmanager.CommandManager
 }
 
+// DefaultOSDetector is a default implementation of the OSDetector interface.
+type DefaultOSDetector struct{}
+
+// OSType represents various types of Operating Systems that are supported.
+type OSType int
+
+const (
+	Unknown OSType = iota
+	LinuxUbuntu
+	LinuxDebian
+	LinuxFedora
+	LinuxRedHat
+	Darwin
+	LinuxCentOS
+	LinuxArch
+	LinuxOpenSUSE
+)
+
 // DetermineOS method for the ConcreteHost
 func (h *ConcreteHost) DetermineOS(ctx context.Context) (OSType, error) {
 	cmdConfig := commandmanager.CommandConfig{
@@ -88,24 +106,6 @@ func (h *ConcreteHost) detectLinuxType(ctx context.Context) (OSType, error) {
 
 	return Unknown, fmt.Errorf("unsupported Linux distribution")
 }
-
-// DefaultOSDetector is a default implementation of the OSDetector interface.
-type DefaultOSDetector struct{}
-
-// OSType represents various types of Operating Systems that are supported.
-type OSType int
-
-const (
-	Unknown OSType = iota
-	LinuxUbuntu
-	LinuxDebian
-	LinuxFedora
-	LinuxRedHat
-	Darwin
-	LinuxCentOS
-	LinuxArch
-	LinuxOpenSUSE
-)
 
 // String method provides the string representation of the OSType.
 func (o OSType) String() string {
