@@ -12,28 +12,34 @@ import (
 	"github.com/steelcutops/steelcut/steelcut/servicemanager"
 )
 
-func NewHost(hostname string) (*Host, error) {
-	ch := &Host{}
+func NewHost(hostname string, options ...HostOption) (*Host, error) {
+    ch := &Host{}
 
-	// Initializing the CommandManager is required before determining the OS
-	ch.CommandManager = &commandmanager.UnixCommandManager{Hostname: hostname}
+    // Apply each HostOption
+    for _, option := range options {
+        option(ch)
+    }
 
-	osType, err := ch.DetermineOS(context.TODO())
-	if err != nil {
-		return nil, err
-	}
+    // Initializing the CommandManager is required before determining the OS
+    ch.CommandManager = &commandmanager.UnixCommandManager{Hostname: hostname}
 
-	switch osType {
-	case LinuxUbuntu, LinuxDebian, LinuxFedora, LinuxRedHat, LinuxCentOS, LinuxArch, LinuxOpenSUSE:
-		configureLinuxHost(ch, hostname, osType)
-	case Darwin:
-		configureMacHost(ch, hostname)
-	default:
-		return nil, fmt.Errorf("unsupported operating system: %s", osType)
-	}
+    osType, err := ch.DetermineOS(context.TODO())
+    if err != nil {
+        return nil, err
+    }
 
-	return ch, nil
+    switch osType {
+    case LinuxUbuntu, LinuxDebian, LinuxFedora, LinuxRedHat, LinuxCentOS, LinuxArch, LinuxOpenSUSE:
+        configureLinuxHost(ch, hostname, osType)
+    case Darwin:
+        configureMacHost(ch, hostname)
+    default:
+        return nil, fmt.Errorf("unsupported operating system: %s", osType)
+    }
+
+    return ch, nil
 }
+
 
 func configureLinuxHost(ch *Host, hostname string, osType OSType) {
 	cmdManager := &commandmanager.UnixCommandManager{Hostname: hostname}
