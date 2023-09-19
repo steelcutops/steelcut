@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/steelcutops/steelcut/common"
 	"github.com/steelcutops/steelcut/steelcut/commandmanager"
 	"github.com/steelcutops/steelcut/steelcut/filemanager"
 	"github.com/steelcutops/steelcut/steelcut/hostmanager"
@@ -13,13 +14,13 @@ import (
 	"github.com/steelcutops/steelcut/steelcut/servicemanager"
 )
 
+
+
 type Host struct {
-	User          string
-	Password      string
-	KeyPassphrase string
-	OSType        OSType
-	SudoPassword  string
-	HostString    string
+	common.Credentials
+
+	OSType   OSType
+	Hostname string
 
 	PackageManager packagemanager.PackageManager
 	NetworkManager networkmanager.NetworkManager

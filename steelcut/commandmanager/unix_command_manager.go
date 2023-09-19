@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/steelcutops/steelcut/common"
 	"github.com/steelcutops/steelcut/logger"
 	"github.com/steelcutops/steelcut/steelcut"
 	"golang.org/x/crypto/ssh"
@@ -20,11 +21,9 @@ type SSHDialer interface {
 }
 
 type UnixCommandManager struct {
-	Hostname      string
-	SSHClient     SSHDialer
-	Password      string
-	KeyPassphrase string
-	User          string
+	Hostname  string
+	SSHClient SSHDialer
+	common.Credentials
 }
 
 func (u *UnixCommandManager) RunLocal(ctx context.Context, config CommandConfig) (CommandResult, error) {

@@ -23,29 +23,32 @@ func NewHost(hostname string, options ...HostOption) (*Host, error) {
 	}
 
 	// If User hasn't been set, set it to the username of the current user
-	if ch.User == "" {
+	if ch.Credentials.User == "" {
 		currentUser, err := user.Current()
 		if err != nil {
 			return nil, fmt.Errorf("could not get current user: %v", err)
 		}
-		ch.User = currentUser.Username
+		ch.Credentials.User = currentUser.Username
 	}
 
 	// If SudoPassword hasn't been set, check environment variables for it
-	if ch.SudoPassword == "" {
+	if ch.Credentials.SudoPassword == "" {
 		steelcutBecomePass := os.Getenv("STEELCUT_BECOME_PASS")
 		if steelcutBecomePass != "" {
-			ch.SudoPassword = steelcutBecomePass
+			ch.Credentials.SudoPassword = steelcutBecomePass
 		} else {
 			ansibleBecomePass := os.Getenv("ANSIBLE_BECOME_PASS")
 			if ansibleBecomePass != "" {
-				ch.SudoPassword = ansibleBecomePass
+				ch.Credentials.SudoPassword = ansibleBecomePass
 			}
 		}
 	}
 
-	// Initializing the CommandManager is required before determining the OS
-	ch.CommandManager = &commandmanager.UnixCommandManager{Hostname: hostname}
+	// Initializing the CommandManager with the new interface
+	ch.CommandManager = &commandmanager.UnixCommandManager{
+		Hostname:    hostname,
+		Credentials: ch.Credentials, // use the new Credentials struct here
+	}
 
 	osType, err := ch.DetermineOS(context.TODO())
 	if err != nil {
