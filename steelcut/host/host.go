@@ -14,8 +14,6 @@ import (
 	"github.com/steelcutops/steelcut/steelcut/servicemanager"
 )
 
-
-
 type Host struct {
 	common.Credentials
 

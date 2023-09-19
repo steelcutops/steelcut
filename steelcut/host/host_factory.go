@@ -47,7 +47,7 @@ func NewHost(hostname string, options ...HostOption) (*Host, error) {
 	// Initializing the CommandManager with the new interface
 	ch.CommandManager = &commandmanager.UnixCommandManager{
 		Hostname:    hostname,
-		Credentials: ch.Credentials, // use the new Credentials struct here
+		Credentials: ch.Credentials,
 	}
 
 	osType, err := ch.DetermineOS(context.TODO())

@@ -31,7 +31,10 @@ func (u *UnixCommandManager) RunLocal(ctx context.Context, config CommandConfig)
 
 	cmd := exec.CommandContext(ctx, config.Command, config.Args...)
 	if config.Sudo {
-		cmd = exec.CommandContext(ctx, "sudo", append([]string{config.Command}, config.Args...)...)
+		cmdArgs := append([]string{"sudo", "-S", config.Command}, config.Args...)
+		cmd = exec.CommandContext(ctx, cmdArgs[0], cmdArgs[1:]...)
+
+		cmd.Stdin = strings.NewReader(u.SudoPassword + "\n")
 	}
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
@@ -40,14 +43,24 @@ func (u *UnixCommandManager) RunLocal(ctx context.Context, config CommandConfig)
 	err := cmd.Run()
 
 	duration := time.Since(start)
-	return CommandResult{
+	result := CommandResult{
 		Command:   config.Command,
 		STDOUT:    stdout.String(),
 		STDERR:    stderr.String(),
 		ExitCode:  getExitCode(err),
 		Duration:  duration,
 		Timestamp: start,
-	}, err
+	}
+
+	// Check for sudo-related errors
+	if strings.Contains(result.STDOUT, "incorrect password") {
+		return result, errors.New("sudo: incorrect password provided")
+	}
+	if strings.Contains(result.STDOUT, "is not in the sudoers file") {
+		return result, errors.New("sudo: user is not in the sudoers file")
+	}
+
+	return result, err
 }
 
 func (c UnixCommandManager) getSSHConfig() (*ssh.ClientConfig, error) {
@@ -115,7 +128,8 @@ func (u *UnixCommandManager) RunRemote(ctx context.Context, config CommandConfig
 
 	cmdStr := config.Command
 	if config.Sudo {
-		cmdStr = "sudo " + cmdStr
+		cmdStr = "sudo -S " + cmdStr
+		session.Stdin = strings.NewReader(u.SudoPassword + "\n")
 	}
 
 	start := time.Now()
@@ -151,12 +165,23 @@ func (u *UnixCommandManager) RunRemote(ctx context.Context, config CommandConfig
 		result.Duration = time.Since(start)
 		result.Timestamp = start
 		result.Command = cmdStr
+
+		// Check for sudo-related errors
+		outputStr := result.STDOUT
+		if strings.Contains(outputStr, "incorrect password") {
+			return result, errors.New("sudo: incorrect password provided")
+		}
+		if strings.Contains(outputStr, "is not in the sudoers file") {
+			return result, errors.New("sudo: user is not in the sudoers file")
+		}
+
 		return result, nil
 
 	case <-ctx.Done():
 		log.Error("Command '%s' over SSH timed out.", cmdStr)
 		return CommandResult{}, ctx.Err()
 	}
+
 }
 
 func (u *UnixCommandManager) Run(ctx context.Context, config CommandConfig) (CommandResult, error) {
