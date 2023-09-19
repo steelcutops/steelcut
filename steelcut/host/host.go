@@ -13,7 +13,7 @@ import (
 	"github.com/steelcutops/steelcut/steelcut/servicemanager"
 )
 
-type ConcreteHost struct {
+type Host struct {
 	User          string
 	Password      string
 	KeyPassphrase string
@@ -48,7 +48,7 @@ const (
 )
 
 // DetermineOS method for the ConcreteHost
-func (h *ConcreteHost) DetermineOS(ctx context.Context) (OSType, error) {
+func (h *Host) DetermineOS(ctx context.Context) (OSType, error) {
 	cmdConfig := commandmanager.CommandConfig{
 		Command: "uname",
 		Sudo:    false,
@@ -73,7 +73,7 @@ func (h *ConcreteHost) DetermineOS(ctx context.Context) (OSType, error) {
 }
 
 // detectLinuxType method for the ConcreteHost
-func (h *ConcreteHost) detectLinuxType(ctx context.Context) (OSType, error) {
+func (h *Host) detectLinuxType(ctx context.Context) (OSType, error) {
 	cmdConfig := commandmanager.CommandConfig{
 		Command: "cat",
 		Args:    []string{"/etc/os-release"},

@@ -12,8 +12,8 @@ import (
 	"github.com/steelcutops/steelcut/steelcut/servicemanager"
 )
 
-func NewHost(hostname string) (*ConcreteHost, error) {
-	ch := &ConcreteHost{}
+func NewHost(hostname string) (*Host, error) {
+	ch := &Host{}
 
 	// Initializing the CommandManager is required before determining the OS
 	ch.CommandManager = &commandmanager.UnixCommandManager{Hostname: hostname}
@@ -35,7 +35,7 @@ func NewHost(hostname string) (*ConcreteHost, error) {
 	return ch, nil
 }
 
-func configureLinuxHost(ch *ConcreteHost, hostname string, osType OSType) {
+func configureLinuxHost(ch *Host, hostname string, osType OSType) {
 	cmdManager := &commandmanager.UnixCommandManager{Hostname: hostname}
 	var pkgManager packagemanager.PackageManager
 
@@ -58,7 +58,7 @@ func configureLinuxHost(ch *ConcreteHost, hostname string, osType OSType) {
 	ch.PackageManager = pkgManager
 }
 
-func configureMacHost(ch *ConcreteHost, hostname string) {
+func configureMacHost(ch *Host, hostname string) {
 	cmdManager := &commandmanager.UnixCommandManager{Hostname: hostname}
 
 	ch.CommandManager = cmdManager
