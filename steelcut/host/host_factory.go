@@ -3,6 +3,7 @@ package host
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/user"
 
@@ -24,7 +25,7 @@ func NewHost(hostname string, options ...HostOption) (*Host, error) {
 
 	// If SSHClient hasn't been set, set it to the default SSHClient
 	if ch.SSHClient == nil {
-		log.Debug("SSHClient is nil, setting to default SSHClient")
+		slog.Debug("SSHClient is nil, setting to default SSHClient")
 		ch.SSHClient = &RealSSHClient{}
 	}
 
@@ -50,7 +51,7 @@ func NewHost(hostname string, options ...HostOption) (*Host, error) {
 		}
 	}
 
-	log.Debug("Creating new host: %s sshclient is: %s", hostname, ch.SSHClient)
+	slog.Debug("Creating new host: %s sshclient is: %s", hostname, ch.SSHClient)
 
 	// Initializing the CommandManager with the new interface
 	ch.CommandManager = &commandmanager.UnixCommandManager{

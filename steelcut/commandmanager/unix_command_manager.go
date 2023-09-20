@@ -3,18 +3,16 @@ package commandmanager
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"os/exec"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/steelcutops/steelcut/common"
-	"github.com/steelcutops/steelcut/logger"
 	"github.com/steelcutops/steelcut/steelcut"
 	"golang.org/x/crypto/ssh"
 )
-
-var log = logger.New()
 
 type SSHDialer interface {
 	Dial(network, addr string, config *ssh.ClientConfig, timeout time.Duration) (*ssh.Client, error)
@@ -67,10 +65,10 @@ func (c UnixCommandManager) getSSHConfig() (*ssh.ClientConfig, error) {
 	var authMethod ssh.AuthMethod
 
 	if c.Password != "" {
-		log.Debug("Using password authentication")
+		slog.Debug("Using password authentication")
 		authMethod = ssh.Password(c.Password)
 	} else {
-		log.Debug("Using public key authentication")
+		slog.Debug("Using public key authentication")
 		var keyManager steelcut.SSHKeyManager
 		if c.KeyPassphrase != "" {
 			keyManager = steelcut.FileSSHKeyManager{}
@@ -96,7 +94,7 @@ func (c UnixCommandManager) getSSHConfig() (*ssh.ClientConfig, error) {
 }
 
 func (u *UnixCommandManager) RunRemote(ctx context.Context, config CommandConfig) (CommandResult, error) {
-	log.Debug("Executing remote command on host: %s", u.Hostname)
+	slog.Debug("Executing remote command on host: %s", u.Hostname)
 
 	if u.SSHClient == nil {
 		return CommandResult{}, errors.New("SSHClient is not initialized")
@@ -147,7 +145,7 @@ func (u *UnixCommandManager) RunRemote(ctx context.Context, config CommandConfig
 			// Execute command
 			err := session.Run(cmdStr)
 			if err != nil {
-				log.Error("Failed to run command '%s' over SSH: %v", cmdStr, err)
+				slog.Error("Failed to run command '%s' over SSH: %v", cmdStr, err)
 				result.ExitCode = getExitCode(err)
 			}
 
@@ -178,7 +176,7 @@ func (u *UnixCommandManager) RunRemote(ctx context.Context, config CommandConfig
 		return result, nil
 
 	case <-ctx.Done():
-		log.Error("Command '%s' over SSH timed out.", cmdStr)
+		slog.Error("Command '%s' over SSH timed out.", cmdStr)
 		return CommandResult{}, ctx.Err()
 	}
 

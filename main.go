@@ -12,7 +12,6 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/steelcutops/steelcut/logger"
 	"github.com/steelcutops/steelcut/steelcut/commandmanager"
 	"github.com/steelcutops/steelcut/steelcut/filemanager"
 	"github.com/steelcutops/steelcut/steelcut/host"
@@ -22,7 +21,7 @@ import (
 	"gopkg.in/ini.v1"
 )
 
-var log = logger.New()
+var programLevel = new(slog.LevelVar)
 
 type HostInfo struct {
 	CPUUsage         float64                   `json:"cpuUsage"`
@@ -91,7 +90,7 @@ func checkHostHealth(host *host.Host) error {
 		return fmt.Errorf("host %s is not reachable: %v", host.Hostname, err)
 	}
 
-	log.Info("Host %s is healthy with RTT: %f ms", host.Hostname, result.RTT)
+	slog.Info("Host %s is healthy with RTT: %f ms", host.Hostname, result.RTT)
 	return nil
 }
 
@@ -114,7 +113,7 @@ func parseFlags() *flags {
 	flag.IntVar(&f.Concurrency, "concurrency", 10, "Maximum number of concurrent host connections")
 	flag.StringVar(&f.ExecCommand, "exec", "", "Execute command on the host")
 	flag.StringVar(&f.IniFilePath, "ini", "", "Path to INI file with host configurations")
-	flag.StringVar(&f.LogFileName, "log", "log.txt", "Log file name")
+	flag.StringVar(&f.LogFileName, "log", "slog.txt", "Log file name")
 	flag.StringVar(&f.ScriptPath, "script", "", "Path to script file to be executed on the host")
 	flag.StringVar(&f.Username, "username", "", "Username to use for SSH connection")
 	flag.Var(&f.Hostnames, "hostname", "Hostname to connect to")
@@ -128,7 +127,7 @@ func monitorHosts(hg *hostgroup.HostGroup, f *flags) {
 	for {
 		hg.RLock()
 		for _, host := range hg.Hosts {
-			hostLogger := log.With("host", host.Hostname) // Setting up contextual logger
+			hostLogger := slog.With("host", host.Hostname) // Setting up contextual logger
 			hostLogger.Debug("Monitoring host")
 			hostInfo, err := getHostInfo(host)
 			if err != nil {
@@ -228,7 +227,7 @@ func processHosts(hg *hostgroup.HostGroup, action func(h *host.Host) error, maxC
 	if result != nil {
 		// Log all errors
 		for _, err := range result.Errors {
-			log.Error("Host processing error: %v", err)
+			slog.Error("Host processing error: %v", err)
 		}
 		return result // Return the multierror
 	}
@@ -283,22 +282,22 @@ func upgradeAllPackages(host *host.Host) error {
 	if err != nil {
 		return fmt.Errorf("failed to upgrade packages: %v", err)
 	}
-	log.Info("Upgraded packages on host", "host", host.Hostname)
+	slog.Info("Upgraded packages on host", "host", host.Hostname)
 	return nil
 }
 
 func addHosts(hostnames []string, hostGroup *hostgroup.HostGroup, options ...host.HostOption) {
 	for _, hostname := range hostnames {
-		log.Debug("Adding host", "host", hostname)
+		slog.Debug("Adding host", "host", hostname)
 		server, err := host.NewHost(hostname, options...)
 		if err != nil {
-			log.Error("Failed to create new host", "host", hostname, "error", err)
+			slog.Error("Failed to create new host", "host", hostname, "error", err)
 
 			continue
 		}
 
 		if checkHostHealth(server) != nil {
-			log.Error("Host is not reachable", "host", hostname, "error", err)
+			slog.Error("Host is not reachable", "host", hostname, "error", err)
 
 			continue
 		}
@@ -376,7 +375,7 @@ func main() {
 	if f.CheckHealth {
 		err := processHosts(hostGroup, checkHostHealth, f.Concurrency)
 		if err != nil {
-			log.Error("Error during Health Check", "error", err)
+			slog.Error("Error during Health Check", "error", err)
 		}
 	}
 
@@ -385,48 +384,48 @@ func main() {
 			return executeCommandOnHost(host, f.ExecCommand)
 		}, f.Concurrency)
 		if err != nil {
-			log.Error("Error during ExecCommand", "error", err)
+			slog.Error("Error during ExecCommand", "error", err)
 		}
 	}
 
 	if f.InfoDump {
 		err := processHosts(hostGroup, dumpHostInfo, f.Concurrency)
 		if err != nil {
-			log.Error("Error during InfoDump", "error", err)
+			slog.Error("Error during InfoDump", "error", err)
 		}
 	}
 
 	if f.ListPackages {
 		err := processHosts(hostGroup, listAllPackages, f.Concurrency)
 		if err != nil {
-			log.Error("Error during ListPackages", "error", err)
+			slog.Error("Error during ListPackages", "error", err)
 		}
 	}
 
 	if f.ListUpgradable {
 		err := processHosts(hostGroup, listUpgradablePackages, f.Concurrency)
 		if err != nil {
-			log.Error("Error during ListUpgradable", "error", err)
+			slog.Error("Error during ListUpgradable", "error", err)
 		}
 	}
 
 	if f.UpgradePackages {
 		err := processHosts(hostGroup, upgradeAllPackages, f.Concurrency)
 		if err != nil {
-			log.Error("Error during UpgradePackages", "error", err)
+			slog.Error("Error during UpgradePackages", "error", err)
 		}
 	}
 
 	if f.ScriptPath != "" {
 		script, err := readScriptFile(f.ScriptPath)
 		if err != nil {
-			log.Error("Failed to read script file", "error", err)
+			slog.Error("Failed to read script file", "error", err)
 		}
 		err = processHosts(hostGroup, func(host *host.Host) error {
 			return executeScript(host, script)
 		}, f.Concurrency)
 		if err != nil {
-			log.Error("Error during Script execution", "error", err)
+			slog.Error("Error during Script execution", "error", err)
 		}
 	}
 
@@ -436,10 +435,15 @@ func main() {
 }
 
 func configureLogger(f *flags) {
+	h := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: programLevel})
+	slog.SetDefault(slog.New(h))
+
 	if f.Debug {
-		log.SetLevel(slog.LevelDebug)
+		slog.Debug("Debug mode enabled")
+		programLevel.Set(slog.LevelDebug)
 	} else {
-		log.SetLevel(slog.LevelInfo)
+		slog.Info("Debug mode disabled")
+		programLevel.Set(slog.LevelInfo)
 	}
 }
 
@@ -448,7 +452,7 @@ func readPasswords(f *flags) (password, keyPass string) {
 		fmt.Print("Enter the password: ")
 		passwordBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
-			log.Error("Failed to read password", "error", err)
+			slog.Error("Failed to read password", "error", err)
 		}
 		password = string(passwordBytes)
 		fmt.Println()
@@ -458,7 +462,7 @@ func readPasswords(f *flags) (password, keyPass string) {
 		fmt.Print("Enter the key passphrase: ")
 		keyPassBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
-			log.Error("Failed to read key passphrase", "error", err)
+			slog.Error("Failed to read key passphrase", "error", err)
 		}
 		keyPass = string(keyPassBytes)
 		fmt.Println()
@@ -481,7 +485,7 @@ func buildHostOptions(f *flags, password, keyPass string) []host.HostOption {
 		fmt.Print("Enter the sudo password: ")
 		sudoPasswordBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
-			log.Error("Failed to read sudo password: %v", err)
+			slog.Error("Failed to read sudo password: %v", err)
 		}
 		sudoPassword := string(sudoPasswordBytes)
 		fmt.Println()
@@ -499,10 +503,10 @@ func initializeHosts(f *flags, options []host.HostOption) *hostgroup.HostGroup {
 	if f.IniFilePath != "" {
 		hostsMap, err := readHostsFromFile(f.IniFilePath)
 		if err != nil {
-			log.Error("Failed to read INI file: %v", err)
+			slog.Error("Failed to read INI file: %v", err)
 		}
 		for group, hosts := range hostsMap {
-			log.Error("Adding hosts from group %s", group)
+			slog.Error("Adding hosts from group %s", group)
 			addHosts(hosts, hostGroup, options...)
 		}
 	}
