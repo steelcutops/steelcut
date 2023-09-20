@@ -84,21 +84,25 @@ func (h *Host) DetermineOS(ctx context.Context) (OSType, error) {
 	}
 
 	result, err := h.CommandManager.Run(ctx, cmdConfig)
-	slog.Debug("Determine OS result ", result.STDOUT)
+	slog.Debug("Determine OS result", "hostname", h.Hostname, "result", result, "error", err)
 	if err != nil {
-		slog.Error("Determine OS error ", err)
+		slog.Error("Determine OS error", "hostname", h.Hostname, "error", err)
 		return Unknown, fmt.Errorf("failed to run uname: %w", err)
 	}
-
 	osName := strings.TrimSpace(result.STDOUT)
+
+	slog.Debug("Determining OS", "hostname", h.Hostname, "osname", osName)
 
 	switch osName {
 	case "Linux":
+		slog.Debug("Detected Linux", "hostname", h.Hostname)
 		return h.detectLinuxType(ctx)
 	case "Darwin":
+		slog.Debug("Detected Darwin", "hostname", h.Hostname)
 		h.OSType = Darwin
 		return Darwin, nil
 	default:
+		slog.Debug("Detected Unknown", "hostname", h.Hostname)
 		return Unknown, fmt.Errorf("unknown OS: %s", osName)
 	}
 }
@@ -112,11 +116,13 @@ func (h *Host) detectLinuxType(ctx context.Context) (OSType, error) {
 	}
 
 	result, err := h.CommandManager.Run(ctx, cmdConfig)
+	slog.Debug("Detecting Linux type", "hostname", h.Hostname, "result", result, "error", err)
 	if err != nil {
 		return Unknown, fmt.Errorf("failed to retrieve OS release info: %w", err)
 	}
 
 	osRelease := result.STDOUT
+	slog.Debug("Detecting Linux type", "hostname", h.Hostname, "osrelease", osRelease)
 
 	if strings.Contains(osRelease, "ID=ubuntu") {
 		return LinuxUbuntu, nil

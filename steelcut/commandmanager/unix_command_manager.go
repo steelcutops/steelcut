@@ -65,10 +65,10 @@ func (c UnixCommandManager) getSSHConfig() (*ssh.ClientConfig, error) {
 	var authMethod ssh.AuthMethod
 
 	if c.Password != "" {
-		slog.Debug("Using password authentication")
+		slog.Debug("Using password authentication", "hostname", c.Hostname)
 		authMethod = ssh.Password(c.Password)
 	} else {
-		slog.Debug("Using public key authentication")
+		slog.Debug("Using public key authentication", "hostname", c.Hostname)
 		var keyManager steelcut.SSHKeyManager
 		if c.KeyPassphrase != "" {
 			keyManager = steelcut.FileSSHKeyManager{}
@@ -94,7 +94,7 @@ func (c UnixCommandManager) getSSHConfig() (*ssh.ClientConfig, error) {
 }
 
 func (u *UnixCommandManager) RunRemote(ctx context.Context, config CommandConfig) (CommandResult, error) {
-	slog.Debug("Executing remote command on host: %s", u.Hostname)
+	slog.Debug("Executing remote command", "hostname", u.Hostname, "command", config.Command)
 
 	if u.SSHClient == nil {
 		return CommandResult{}, errors.New("SSHClient is not initialized")
@@ -124,7 +124,8 @@ func (u *UnixCommandManager) RunRemote(ctx context.Context, config CommandConfig
 	}
 	defer session.Close()
 
-	cmdStr := config.Command
+	cmdStr := config.Command + " " + strings.Join(config.Args, " ")
+
 	if config.Sudo {
 		cmdStr = "sudo -S " + cmdStr
 		session.Stdin = strings.NewReader(u.SudoPassword + "\n")

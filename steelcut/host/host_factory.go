@@ -27,6 +27,8 @@ func NewHost(hostname string, options ...HostOption) (*Host, error) {
 	if ch.SSHClient == nil {
 		slog.Debug("SSHClient is nil, setting to default SSHClient")
 		ch.SSHClient = &RealSSHClient{}
+	} else {
+		slog.Debug("SSHClient is not nil, using provided SSHClient", "sshclient", ch.SSHClient)
 	}
 
 	// If User hasn't been set, set it to the username of the current user
@@ -50,8 +52,6 @@ func NewHost(hostname string, options ...HostOption) (*Host, error) {
 			}
 		}
 	}
-
-	slog.Debug("Creating new host: %s sshclient is: %s", hostname, ch.SSHClient)
 
 	// Initializing the CommandManager with the new interface
 	ch.CommandManager = &commandmanager.UnixCommandManager{
