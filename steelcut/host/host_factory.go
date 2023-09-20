@@ -22,6 +22,12 @@ func NewHost(hostname string, options ...HostOption) (*Host, error) {
 		option(ch)
 	}
 
+	// If SSHClient hasn't been set, set it to the default SSHClient
+	if ch.SSHClient == nil {
+		log.Debug("SSHClient is nil, setting to default SSHClient")
+		ch.SSHClient = &RealSSHClient{}
+	}
+
 	// If User hasn't been set, set it to the username of the current user
 	if ch.Credentials.User == "" {
 		currentUser, err := user.Current()
@@ -44,11 +50,13 @@ func NewHost(hostname string, options ...HostOption) (*Host, error) {
 		}
 	}
 
+	log.Debug("Creating new host: %s sshclient is: %s", hostname, ch.SSHClient)
+
 	// Initializing the CommandManager with the new interface
 	ch.CommandManager = &commandmanager.UnixCommandManager{
 		Hostname:    hostname,
 		Credentials: ch.Credentials,
-		SSHClient:   &RealSSHClient{},
+		SSHClient:   ch.SSHClient,
 	}
 
 	osType, err := ch.DetermineOS(context.TODO())

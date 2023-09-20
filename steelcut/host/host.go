@@ -10,6 +10,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/steelcutops/steelcut/common"
+	"github.com/steelcutops/steelcut/logger"
 	"github.com/steelcutops/steelcut/steelcut/commandmanager"
 	"github.com/steelcutops/steelcut/steelcut/filemanager"
 	"github.com/steelcutops/steelcut/steelcut/hostmanager"
@@ -17,6 +18,8 @@ import (
 	"github.com/steelcutops/steelcut/steelcut/packagemanager"
 	"github.com/steelcutops/steelcut/steelcut/servicemanager"
 )
+
+var log = logger.New()
 
 type Host struct {
 	common.Credentials
@@ -83,7 +86,9 @@ func (h *Host) DetermineOS(ctx context.Context) (OSType, error) {
 	}
 
 	result, err := h.CommandManager.Run(ctx, cmdConfig)
+	log.Debug("Determine OS result ", result.STDOUT)
 	if err != nil {
+		log.Error("Determine OS error ", err)
 		return Unknown, fmt.Errorf("failed to run uname: %w", err)
 	}
 
@@ -131,7 +136,7 @@ func (h *Host) detectLinuxType(ctx context.Context) (OSType, error) {
 		return LinuxOpenSUSE, nil
 	}
 
-	return Unknown, fmt.Errorf("unsupported Linux distribution")
+	return Unknown, fmt.Errorf("unsupported Linux distribution detected on host: %s osRelease: %s", h.Hostname, osRelease)
 }
 
 // String method provides the string representation of the OSType.
