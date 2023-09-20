@@ -489,6 +489,7 @@ func buildHostOptions(f *flags, password, keyPass string) []host.HostOption {
 			options = append(options, host.WithSudoPassword(sudoPassword))
 		}
 	}
+	options = append(options, host.WithSSHClient(&host.RealSSHClient{}))
 	return options
 }
 

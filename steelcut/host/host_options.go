@@ -36,3 +36,10 @@ func WithSudoPassword(password string) HostOption {
 		host.SudoPassword = password
 	}
 }
+
+// WithSSHClient returns a HostOption that sets the SSHClient for a UnixHost.
+func WithSSHClient(client SSHClient) HostOption {
+	return func(host *Host) {
+		host.SSHClient = client
+	}
+}

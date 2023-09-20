@@ -48,6 +48,7 @@ func NewHost(hostname string, options ...HostOption) (*Host, error) {
 	ch.CommandManager = &commandmanager.UnixCommandManager{
 		Hostname:    hostname,
 		Credentials: ch.Credentials,
+		SSHClient:   &RealSSHClient{},
 	}
 
 	osType, err := ch.DetermineOS(context.TODO())

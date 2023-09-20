@@ -3,7 +3,11 @@ package host
 import (
 	"context"
 	"fmt"
+	"net"
 	"strings"
+	"time"
+
+	"golang.org/x/crypto/ssh"
 
 	"github.com/steelcutops/steelcut/common"
 	"github.com/steelcutops/steelcut/steelcut/commandmanager"
@@ -17,8 +21,9 @@ import (
 type Host struct {
 	common.Credentials
 
-	OSType   OSType
-	Hostname string
+	OSType    OSType
+	SSHClient SSHClient
+	Hostname  string
 
 	PackageManager packagemanager.PackageManager
 	NetworkManager networkmanager.NetworkManager
@@ -26,6 +31,30 @@ type Host struct {
 	HostManager    hostmanager.HostManager
 	ServiceManager servicemanager.ServiceManager
 	CommandManager commandmanager.CommandManager
+}
+
+// SSHClient defines an interface for dialing and establishing an SSH connection.
+type SSHClient interface {
+	Dial(network, addr string, config *ssh.ClientConfig, timeout time.Duration) (*ssh.Client, error)
+}
+
+// RealSSHClient provides a real implementation of the SSHClient interface.
+type RealSSHClient struct{}
+
+// Dial dials an SSH connection with the given network, address, client config, and timeout.
+func (c RealSSHClient) Dial(network, addr string, config *ssh.ClientConfig, timeout time.Duration) (*ssh.Client, error) {
+	// Dial with a timeout
+	conn, err := net.DialTimeout(network, addr, timeout)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create an SSH client connection using the underlying network connection
+	sshConn, chans, reqs, err := ssh.NewClientConn(conn, addr, config)
+	if err != nil {
+		return nil, err
+	}
+	return ssh.NewClient(sshConn, chans, reqs), nil
 }
 
 // DefaultOSDetector is a default implementation of the OSDetector interface.
