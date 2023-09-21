@@ -185,8 +185,11 @@ func (u *UnixCommandManager) RunRemote(ctx context.Context, config CommandConfig
 
 func (u *UnixCommandManager) Run(ctx context.Context, config CommandConfig) (CommandResult, error) {
 	if u.isLocal() {
+		slog.Debug("Detected local so running local command", "hostname", u.Hostname, "command", config.Command, "sshclient", u.SSHClient)
 		return u.RunLocal(ctx, config)
 	}
+
+	slog.Debug("Detected remote command so running remote command", "hostname", u.Hostname, "command", config.Command, "sshclient", u.SSHClient)
 	return u.RunRemote(ctx, config)
 }
 

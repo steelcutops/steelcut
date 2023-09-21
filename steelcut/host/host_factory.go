@@ -67,9 +67,10 @@ func NewHost(hostname string, options ...HostOption) (*Host, error) {
 
 	switch osType {
 	case LinuxUbuntu, LinuxDebian, LinuxFedora, LinuxRedHat, LinuxCentOS, LinuxArch, LinuxOpenSUSE:
-		configureLinuxHost(ch, hostname, osType)
+		configureLinuxHost(ch, ch.CommandManager, osType)
+
 	case Darwin:
-		configureMacHost(ch, hostname)
+		configureMacHost(ch, ch.CommandManager)
 	default:
 		return nil, fmt.Errorf("unsupported operating system: %s", osType)
 	}
@@ -77,8 +78,7 @@ func NewHost(hostname string, options ...HostOption) (*Host, error) {
 	return ch, nil
 }
 
-func configureLinuxHost(ch *Host, hostname string, osType OSType) {
-	cmdManager := &commandmanager.UnixCommandManager{Hostname: hostname}
+func configureLinuxHost(ch *Host, cmdManager commandmanager.CommandManager, osType OSType) {
 	var pkgManager packagemanager.PackageManager
 
 	switch osType {
@@ -100,9 +100,7 @@ func configureLinuxHost(ch *Host, hostname string, osType OSType) {
 	ch.PackageManager = pkgManager
 }
 
-func configureMacHost(ch *Host, hostname string) {
-	cmdManager := &commandmanager.UnixCommandManager{Hostname: hostname}
-
+func configureMacHost(ch *Host, cmdManager commandmanager.CommandManager) {
 	ch.CommandManager = cmdManager
 	ch.FileManager = &filemanager.UnixFileManager{CommandManager: cmdManager}
 	ch.HostManager = &hostmanager.UnixHostManager{CommandManager: cmdManager}

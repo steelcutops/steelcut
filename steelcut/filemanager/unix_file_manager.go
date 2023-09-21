@@ -32,7 +32,7 @@ type FileOperations interface {
 }
 
 type UnixFileManager struct {
-	CommandManager *cm.UnixCommandManager
+	CommandManager cm.CommandManager
 }
 
 func (ufm *UnixFileManager) CreateDirectory(path string) error {

@@ -227,7 +227,7 @@ func processHosts(hg *hostgroup.HostGroup, action func(h *host.Host) error, maxC
 	if result != nil {
 		// Log all errors
 		for _, err := range result.Errors {
-			slog.Error("Host processing error: %v", err)
+			slog.Error("Host processing error", "error", err)
 		}
 		return result // Return the multierror
 	}
@@ -296,12 +296,6 @@ func addHosts(hostnames []string, hostGroup *hostgroup.HostGroup, options ...hos
 			continue
 		}
 
-		if checkHostHealth(server) != nil {
-			slog.Error("Host is not reachable", "host", hostname, "error", err)
-
-			continue
-		}
-
 		hostGroup.AddHost(server)
 	}
 }
@@ -315,6 +309,12 @@ func executeCommandOnHost(host *host.Host, command string) error {
 	config := commandmanager.CommandConfig{
 		Command: command,
 		Sudo:    false,
+	}
+
+	if host.SSHClient == nil {
+		slog.Error("SSHClient is nil in executeCommandOnHost")
+	} else {
+		slog.Debug("SSHClient is available in executeCommandOnHost")
 	}
 
 	// Use the CommandManager embedded in the host.Host struct
@@ -494,6 +494,7 @@ func buildHostOptions(f *flags, password, keyPass string) []host.HostOption {
 		}
 	}
 	options = append(options, host.WithSSHClient(&host.RealSSHClient{}))
+	slog.Debug("SSHClient set in options")
 	return options
 }
 
