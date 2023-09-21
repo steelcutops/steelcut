@@ -146,7 +146,7 @@ func (u *UnixCommandManager) RunRemote(ctx context.Context, config CommandConfig
 			// Execute command
 			err := session.Run(cmdStr)
 			if err != nil {
-				slog.Error("Failed to run command '%s' over SSH: %v", cmdStr, err)
+				slog.Error("Failed to execute command ver SSH", "command", cmdStr, "error", err, "stdout", stdout.String(), "stderr", stderr.String())
 				result.ExitCode = getExitCode(err)
 			}
 

@@ -2,8 +2,9 @@ package packagemanager
 
 import (
 	"context"
-	cm "github.com/steelcutops/steelcut/steelcut/commandmanager"
 	"strings"
+
+	cm "github.com/steelcutops/steelcut/steelcut/commandmanager"
 )
 
 type YumPackageManager struct {
@@ -33,6 +34,7 @@ func (ypm *YumPackageManager) ListPackages() ([]string, error) {
 func (ypm *YumPackageManager) AddPackage(pkg string) error {
 	_, err := ypm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "yum",
+		Sudo:    true,
 		Args:    []string{"install", "-y", pkg},
 	})
 	return err
@@ -41,6 +43,7 @@ func (ypm *YumPackageManager) AddPackage(pkg string) error {
 func (ypm *YumPackageManager) RemovePackage(pkg string) error {
 	_, err := ypm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "yum",
+		Sudo:    true,
 		Args:    []string{"remove", "-y", pkg},
 	})
 	return err
@@ -49,6 +52,7 @@ func (ypm *YumPackageManager) RemovePackage(pkg string) error {
 func (ypm *YumPackageManager) UpgradePackage(pkg string) error {
 	_, err := ypm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "yum",
+		Sudo:    true,
 		Args:    []string{"update", "-y", pkg},
 	})
 	return err
@@ -77,6 +81,7 @@ func (ypm *YumPackageManager) CheckOSUpdates() ([]string, error) {
 func (ypm *YumPackageManager) UpgradeAll() ([]string, error) {
 	_, err := ypm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "yum",
+		Sudo:    true,
 		Args:    []string{"update", "-y"},
 	})
 	if err != nil {

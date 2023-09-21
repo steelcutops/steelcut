@@ -2,8 +2,9 @@ package packagemanager
 
 import (
 	"context"
-	cm "github.com/steelcutops/steelcut/steelcut/commandmanager"
 	"strings"
+
+	cm "github.com/steelcutops/steelcut/steelcut/commandmanager"
 )
 
 type AptPackageManager struct {
@@ -33,6 +34,7 @@ func (apm *AptPackageManager) ListPackages() ([]string, error) {
 func (apm *AptPackageManager) AddPackage(pkg string) error {
 	_, err := apm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "apt-get",
+		Sudo:    true,
 		Args:    []string{"install", "-y", pkg},
 	})
 	return err
@@ -41,6 +43,7 @@ func (apm *AptPackageManager) AddPackage(pkg string) error {
 func (apm *AptPackageManager) RemovePackage(pkg string) error {
 	_, err := apm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "apt-get",
+		Sudo:    true,
 		Args:    []string{"remove", "-y", pkg},
 	})
 	return err
@@ -49,6 +52,7 @@ func (apm *AptPackageManager) RemovePackage(pkg string) error {
 func (apm *AptPackageManager) UpgradePackage(pkg string) error {
 	_, err := apm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "apt-get",
+		Sudo:    true,
 		Args:    []string{"install", "--only-upgrade", "-y", pkg},
 	})
 	return err
@@ -57,6 +61,7 @@ func (apm *AptPackageManager) UpgradePackage(pkg string) error {
 func (apm *AptPackageManager) CheckOSUpdates() ([]string, error) {
 	_, err := apm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "apt-get",
+		Sudo:    true,
 		Args:    []string{"update"},
 	})
 	if err != nil {
@@ -87,6 +92,7 @@ func (apm *AptPackageManager) CheckOSUpdates() ([]string, error) {
 func (apm *AptPackageManager) UpgradeAll() ([]string, error) {
 	_, err := apm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "apt-get",
+		Sudo:    true,
 		Args:    []string{"dist-upgrade", "-y"},
 	})
 	if err != nil {

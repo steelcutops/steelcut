@@ -2,8 +2,9 @@ package packagemanager
 
 import (
 	"context"
-	cm "github.com/steelcutops/steelcut/steelcut/commandmanager"
 	"strings"
+
+	cm "github.com/steelcutops/steelcut/steelcut/commandmanager"
 )
 
 type DnfPackageManager struct {
@@ -33,6 +34,7 @@ func (dpm *DnfPackageManager) ListPackages() ([]string, error) {
 func (dpm *DnfPackageManager) AddPackage(pkg string) error {
 	_, err := dpm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "dnf",
+		Sudo:    true,
 		Args:    []string{"install", "-y", pkg},
 	})
 	return err
@@ -41,6 +43,7 @@ func (dpm *DnfPackageManager) AddPackage(pkg string) error {
 func (dpm *DnfPackageManager) RemovePackage(pkg string) error {
 	_, err := dpm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "dnf",
+		Sudo:    true,
 		Args:    []string{"remove", "-y", pkg},
 	})
 	return err
@@ -49,6 +52,7 @@ func (dpm *DnfPackageManager) RemovePackage(pkg string) error {
 func (dpm *DnfPackageManager) UpgradePackage(pkg string) error {
 	_, err := dpm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "dnf",
+		Sudo:    true,
 		Args:    []string{"upgrade", "-y", pkg},
 	})
 	return err
@@ -77,6 +81,7 @@ func (dpm *DnfPackageManager) CheckOSUpdates() ([]string, error) {
 func (dpm *DnfPackageManager) UpgradeAll() ([]string, error) {
 	_, err := dpm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "dnf",
+		Sudo:    true,
 		Args:    []string{"upgrade", "-y"},
 	})
 	if err != nil {
