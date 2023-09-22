@@ -504,10 +504,10 @@ func initializeHosts(f *flags, options []host.HostOption) *hostgroup.HostGroup {
 	if f.IniFilePath != "" {
 		hostsMap, err := readHostsFromFile(f.IniFilePath)
 		if err != nil {
-			slog.Error("Failed to read INI file: %v", err)
+			slog.Error("Failed to read INI file", "error", err)
 		}
 		for group, hosts := range hostsMap {
-			slog.Error("Adding hosts from group %s", group)
+			slog.Error("Adding hosts from group", "group", group)
 			addHosts(hosts, hostGroup, options...)
 		}
 	}

@@ -189,7 +189,7 @@ func (u *UnixCommandManager) RunRemote(ctx context.Context, config CommandConfig
 		return result, nil
 
 	case <-ctx.Done():
-		slog.Error("Command '%s' over SSH timed out.", cmdStr)
+		slog.Error("Command over SSH timed out.", "command_string", cmdStr)
 		return CommandResult{}, ctx.Err()
 	}
 
