@@ -62,11 +62,20 @@ func (u *UnixCommandManager) RunLocal(ctx context.Context, config CommandConfig)
 }
 
 func (c UnixCommandManager) getSSHConfig() (*ssh.ClientConfig, error) {
-	var authMethod ssh.AuthMethod
+	var authMethods []ssh.AuthMethod
+
+	handleKeyboardInteractive := func(user, instruction string, questions []string, echos []bool) ([]string, error) {
+		for _, question := range questions {
+			slog.Debug("Received keyboard-interactive challenge:", "challenge", question, "hostname", c.Hostname)
+		}
+
+		// Return an empty response to prevent hanging.
+		return make([]string, len(questions)), nil
+	}
 
 	if c.Password != "" {
 		slog.Debug("Using password authentication", "hostname", c.Hostname)
-		authMethod = ssh.Password(c.Password)
+		authMethods = append(authMethods, ssh.Password(c.Password))
 	} else {
 		slog.Debug("Using public key authentication", "hostname", c.Hostname)
 		var keyManager steelcut.SSHKeyManager
@@ -81,14 +90,17 @@ func (c UnixCommandManager) getSSHConfig() (*ssh.ClientConfig, error) {
 			return nil, err
 		}
 
-		authMethod = ssh.PublicKeysCallback(func() ([]ssh.Signer, error) {
+		authMethods = append(authMethods, ssh.PublicKeysCallback(func() ([]ssh.Signer, error) {
 			return keys, nil
-		})
+		}))
 	}
+
+	// Add keyboard-interactive authentication method
+	authMethods = append(authMethods, ssh.KeyboardInteractive(handleKeyboardInteractive))
 
 	return &ssh.ClientConfig{
 		User:            c.User,
-		Auth:            []ssh.AuthMethod{authMethod},
+		Auth:            authMethods,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}, nil
 }
