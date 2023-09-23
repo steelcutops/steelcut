@@ -1,6 +1,6 @@
 build:
 	@echo "Building the project..."
-	go build -o bin/steelcut
+	go build -o bin/steelcut ./cmd/steelcut
 	@echo "Build complete!"
 
 docs:
@@ -20,7 +20,7 @@ cover:
 
 run:
 	@echo "Running the project..."
-	go run main.go
+	go run ./cmd/steelcut/main.go
 	@echo "Execution complete!"
 
 clean:
@@ -49,4 +49,4 @@ tidy:
 	go mod verify
 	@echo "Dependencies are tidy and verified!"
 
-.PHONY: fmt build test run clean vet lint mod
+.PHONY: fmt build test run clean vet lint tidy
