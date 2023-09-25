@@ -185,7 +185,7 @@ func executeScript(host *host.Host, script string) error {
 	}
 
 	// Print the output
-	fmt.Printf("Output of script on host %s:\n%s\n", host.Hostname, result.STDOUT)
+	fmt.Printf("Host %s:\n%s\n", host.Hostname, result.STDOUT)
 
 	// Check for errors in STDERR if necessary
 	if result.STDERR != "" {
@@ -324,7 +324,7 @@ func executeCommandOnHost(host *host.Host, command string) error {
 	}
 
 	// Print the output
-	fmt.Printf("Output of command on host %s:\n%s\n", host.Hostname, result.STDOUT)
+	fmt.Printf("Host %s:\n%s\n", host.Hostname, result.STDOUT)
 
 	// Check for errors in STDERR if necessary
 	if result.STDERR != "" {
@@ -441,9 +441,6 @@ func configureLogger(f *flags) {
 	if f.Debug {
 		slog.Debug("Debug mode enabled")
 		programLevel.Set(slog.LevelDebug)
-	} else {
-		slog.Info("Debug mode disabled")
-		programLevel.Set(slog.LevelInfo)
 	}
 }
 
