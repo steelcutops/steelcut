@@ -124,14 +124,13 @@ func (u *UnixCommandManager) RunRemote(ctx context.Context, config CommandConfig
 	}
 
 	client, err := u.SSHClient.Dial("tcp", u.Hostname+":22", sshConfig, dialTimeout)
-
-	if err != nil {
+	if err != nil || client == nil {
 		return CommandResult{}, err
 	}
 	defer client.Close()
 
 	session, err := client.NewSession()
-	if err != nil {
+	if err != nil || session == nil {
 		return CommandResult{}, err
 	}
 	defer session.Close()
@@ -140,35 +139,34 @@ func (u *UnixCommandManager) RunRemote(ctx context.Context, config CommandConfig
 
 	if config.Sudo {
 		cmdStr = "sudo -S " + cmdStr
-		session.Stdin = strings.NewReader(u.SudoPassword + "\n")
+		if session.Stdin != nil { // Check if session.Stdin is not nil before assigning
+			session.Stdin = strings.NewReader(u.SudoPassword + "\n")
+		}
 	}
 
 	start := time.Now()
 
 	outputCh := make(chan CommandResult)
 	go func() {
-		go func() {
-			var result CommandResult
+		var result CommandResult
 
-			// Set up the command to execute remotely
-			var stdout, stderr strings.Builder
-			session.Stdout = &stdout
-			session.Stderr = &stderr
+		// Set up the command to execute remotely
+		var stdout, stderr strings.Builder
+		session.Stdout = &stdout
+		session.Stderr = &stderr
 
-			// Execute command
-			err := session.Run(cmdStr)
-			if err != nil {
-				slog.Error("Failed to execute command ver SSH", "command", cmdStr, "error", err, "stdout", stdout.String(), "stderr", stderr.String())
-				result.ExitCode = getExitCode(err)
-			}
+		// Execute command
+		err := session.Run(cmdStr)
+		if err != nil {
+			slog.Error("Failed to execute command over SSH", "command", cmdStr, "error", err, "stdout", stdout.String(), "stderr", stderr.String())
+			result.ExitCode = getExitCode(err)
+		}
 
-			result.STDOUT = stdout.String()
-			result.STDERR = stderr.String()
+		result.STDOUT = stdout.String()
+		result.STDERR = stderr.String()
 
-			// Send the result to the channel
-			outputCh <- result
-		}()
-
+		// Send the result to the channel
+		outputCh <- result
 	}()
 
 	select {
@@ -192,7 +190,6 @@ func (u *UnixCommandManager) RunRemote(ctx context.Context, config CommandConfig
 		slog.Error("Command over SSH timed out.", "command_string", cmdStr)
 		return CommandResult{}, ctx.Err()
 	}
-
 }
 
 func (u *UnixCommandManager) Run(ctx context.Context, config CommandConfig) (CommandResult, error) {
