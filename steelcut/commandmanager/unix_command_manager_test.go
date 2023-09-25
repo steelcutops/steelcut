@@ -3,9 +3,10 @@ package commandmanager
 import (
 	"context"
 	"errors"
-	"golang.org/x/crypto/ssh"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/ssh"
 
 	"github.com/steelcutops/steelcut/common"
 )
@@ -16,6 +17,14 @@ type MockSSHClient struct {
 
 func (m *MockSSHClient) Dial(network, addr string, config *ssh.ClientConfig, timeout time.Duration) (*ssh.Client, error) {
 	return nil, m.dialError
+}
+
+type MockSSHSession struct {
+	runError error
+}
+
+func (m *MockSSHSession) Run(cmd string) error {
+	return m.runError
 }
 
 func TestRunLocal(t *testing.T) {
@@ -73,5 +82,31 @@ func TestRunRemoteDialError(t *testing.T) {
 
 	if err == nil || err.Error() != "mock dial error" {
 		t.Errorf("Expected RunRemote to return mock dial error, got %v", err)
+	}
+}
+
+func TestRun(t *testing.T) {
+	managerLocal := UnixCommandManager{
+		Hostname: "localhost",
+	}
+	managerRemote := UnixCommandManager{
+		Hostname: "example.com",
+	}
+
+	config := CommandConfig{
+		Command: "echo",
+		Args:    []string{"hello"},
+	}
+
+	// Test local execution
+	_, errLocal := managerLocal.Run(context.Background(), config)
+	if errLocal != nil {
+		t.Errorf("Run with localhost failed: %v", errLocal)
+	}
+
+	// Test remote execution (mock error for simplicity)
+	_, errRemote := managerRemote.Run(context.Background(), config)
+	if errRemote == nil {
+		t.Errorf("Expected Run with remote host to fail due to lack of mock, but it didn't")
 	}
 }
