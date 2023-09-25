@@ -106,7 +106,12 @@ func (c UnixCommandManager) getSSHConfig() (*ssh.ClientConfig, error) {
 }
 
 func (u *UnixCommandManager) RunRemote(ctx context.Context, config CommandConfig) (CommandResult, error) {
-	slog.Debug("Executing remote command", "hostname", u.Hostname, "command", config.Command)
+	slog.Debug("Executing remote command",
+		"hostname", u.Hostname,
+		"command", config.Command,
+		"args", strings.Join(config.Args, " "),
+		"sudo", config.Sudo,
+	)
 
 	if u.SSHClient == nil {
 		return CommandResult{}, errors.New("SSHClient is not initialized")
