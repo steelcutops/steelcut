@@ -144,9 +144,7 @@ func (u *UnixCommandManager) RunRemote(ctx context.Context, config CommandConfig
 
 	if config.Sudo {
 		cmdStr = "sudo -S " + cmdStr
-		if session.Stdin != nil { // Check if session.Stdin is not nil before assigning
-			session.Stdin = strings.NewReader(u.SudoPassword + "\n")
-		}
+		session.Stdin = strings.NewReader(u.SudoPassword + "\n")
 	}
 
 	start := time.Now()
