@@ -17,6 +17,7 @@ import (
 
 func NewHost(hostname string, options ...HostOption) (*Host, error) {
 	ch := &Host{}
+	ch.Hostname = hostname
 
 	// Apply each HostOption
 	for _, option := range options {
