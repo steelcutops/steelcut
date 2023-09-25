@@ -3,9 +3,9 @@ package commandmanager
 import (
 	"context"
 	"errors"
+	"golang.org/x/crypto/ssh"
 	"testing"
 	"time"
-	"golang.org/x/crypto/ssh"
 
 	"github.com/steelcutops/steelcut/common"
 )
@@ -57,8 +57,8 @@ func TestIsLocal(t *testing.T) {
 
 func TestRunRemoteDialError(t *testing.T) {
 	manager := UnixCommandManager{
-		Hostname:   "remote",
-		SSHClient:  &MockSSHClient{dialError: errors.New("mock dial error")},
+		Hostname:  "remote",
+		SSHClient: &MockSSHClient{dialError: errors.New("mock dial error")},
 		Credentials: common.Credentials{
 			User:     "user",
 			Password: "password",
