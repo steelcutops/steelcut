@@ -3,18 +3,40 @@ package expectmanager
 import (
 	"context"
 	"errors"
-	"strings"
+	"regexp"
 	"time"
 
 	cm "github.com/steelcutops/steelcut/steelcut/commandmanager"
 )
 
+type Matcher interface {
+	Match(string) bool
+}
+
+type RegexMatcher struct {
+	Pattern *regexp.Regexp
+}
+
+func NewRegexMatcher(pattern string) (*RegexMatcher, error) {
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, err
+	}
+	return &RegexMatcher{Pattern: re}, nil
+}
+
+func (r *RegexMatcher) Match(s string) bool {
+	return r.Pattern.MatchString(s)
+}
+
 type Expectation struct {
-	Pattern     string
-	Response    string
-	Timeout     time.Duration
-	OnTimeout   func() error
-	OnSuccess   func() error
+	Matcher    Matcher
+	Response   string
+	Timeout    time.Duration
+	OnTimeout  func() error
+	OnSuccess  func() error
+	BeforeHook func() error
+	AfterHook  func() error
 }
 
 type ExpectManager struct {
@@ -40,7 +62,7 @@ func (em *ExpectManager) Interact(ctx context.Context, cmdConfig cm.CommandConfi
 		defer cancel()
 
 		// Check the output for the expected pattern
-		if strings.Contains(result.STDOUT, exp.Pattern) {
+		if exp.Matcher.Match(result.STDOUT) {
 			// If pattern found, run the success function if provided
 			if exp.OnSuccess != nil {
 				err := exp.OnSuccess()
