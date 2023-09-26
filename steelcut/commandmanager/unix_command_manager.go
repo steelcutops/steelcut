@@ -25,22 +25,22 @@ type UnixCommandManager struct {
 }
 
 func (u *UnixCommandManager) checkSudoErrors(result CommandResult) error {
-	if strings.Contains(result.STDOUT, "incorrect password") {
+	if strings.Contains(result.STDERR, "incorrect password") {
 		return errors.New("sudo: incorrect password provided")
 	}
-	if strings.Contains(result.STDOUT, "is not in the sudoers file") {
+	if strings.Contains(result.STDERR, "is not in the sudoers file") {
 		return errors.New("sudo: user is not in the sudoers file")
 	}
-	if strings.Contains(result.STDOUT, "timed out reading password") {
+	if strings.Contains(result.STDERR, "timed out reading password") {
 		return errors.New("sudo: password prompt timed out")
 	}
-	if strings.Contains(result.STDOUT, "no tty present and no askpass program specified") {
+	if strings.Contains(result.STDERR, "no tty present and no askpass program specified") {
 		return errors.New("sudo: cannot prompt for password due to missing terminal or askpass program")
 	}
-	if strings.Contains(result.STDOUT, "unknown user") {
+	if strings.Contains(result.STDERR, "unknown user") {
 		return errors.New("sudo: specified user is unknown")
 	}
-	if strings.Contains(result.STDOUT, "unable to execute") {
+	if strings.Contains(result.STDERR, "unable to execute") {
 		return errors.New("sudo: unable to execute the specified command")
 	}
 	if strings.Contains(result.STDERR, "Permission denied") {
