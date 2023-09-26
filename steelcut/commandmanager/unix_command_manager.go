@@ -31,6 +31,21 @@ func (u *UnixCommandManager) checkSudoErrors(result CommandResult) error {
 	if strings.Contains(result.STDOUT, "is not in the sudoers file") {
 		return errors.New("sudo: user is not in the sudoers file")
 	}
+	if strings.Contains(result.STDOUT, "timed out reading password") {
+		return errors.New("sudo: password prompt timed out")
+	}
+	if strings.Contains(result.STDOUT, "no tty present and no askpass program specified") {
+		return errors.New("sudo: cannot prompt for password due to missing terminal or askpass program")
+	}
+	if strings.Contains(result.STDOUT, "unknown user") {
+		return errors.New("sudo: specified user is unknown")
+	}
+	if strings.Contains(result.STDOUT, "unable to execute") {
+		return errors.New("sudo: unable to execute the specified command")
+	}
+	if strings.Contains(result.STDERR, "Permission denied") {
+		return errors.New("permission denied: consider using sudo for this command")
+	}
 	return nil
 }
 
