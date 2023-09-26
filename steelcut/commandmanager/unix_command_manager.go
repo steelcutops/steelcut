@@ -24,6 +24,16 @@ type UnixCommandManager struct {
 	common.Credentials
 }
 
+func (u *UnixCommandManager) checkSudoErrors(result CommandResult) error {
+	if strings.Contains(result.STDOUT, "incorrect password") {
+		return errors.New("sudo: incorrect password provided")
+	}
+	if strings.Contains(result.STDOUT, "is not in the sudoers file") {
+		return errors.New("sudo: user is not in the sudoers file")
+	}
+	return nil
+}
+
 func (u *UnixCommandManager) RunLocal(ctx context.Context, config CommandConfig) (CommandResult, error) {
 	start := time.Now()
 
@@ -51,11 +61,9 @@ func (u *UnixCommandManager) RunLocal(ctx context.Context, config CommandConfig)
 	}
 
 	// Check for sudo-related errors
-	if strings.Contains(result.STDOUT, "incorrect password") {
-		return result, errors.New("sudo: incorrect password provided")
-	}
-	if strings.Contains(result.STDOUT, "is not in the sudoers file") {
-		return result, errors.New("sudo: user is not in the sudoers file")
+	sudoErr := u.checkSudoErrors(result)
+	if sudoErr != nil {
+		return result, sudoErr
 	}
 
 	return result, err
@@ -179,12 +187,9 @@ func (u *UnixCommandManager) RunRemote(ctx context.Context, config CommandConfig
 		result.Command = cmdStr
 
 		// Check for sudo-related errors
-		outputStr := result.STDOUT
-		if strings.Contains(outputStr, "incorrect password") {
-			return result, errors.New("sudo: incorrect password provided")
-		}
-		if strings.Contains(outputStr, "is not in the sudoers file") {
-			return result, errors.New("sudo: user is not in the sudoers file")
+		sudoErr := u.checkSudoErrors(result)
+		if sudoErr != nil {
+			return result, sudoErr
 		}
 
 		return result, nil
