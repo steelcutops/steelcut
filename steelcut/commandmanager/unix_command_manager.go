@@ -29,7 +29,7 @@ func (u *UnixCommandManager) RunLocal(ctx context.Context, config CommandConfig)
 
 	cmd := exec.CommandContext(ctx, config.Command, config.Args...)
 	if config.Sudo {
-		cmdArgs := append([]string{"sudo", "-S", config.Command}, config.Args...)
+		cmdArgs := append([]string{"sudo", "-S", "--", config.Command}, config.Args...)
 		cmd = exec.CommandContext(ctx, cmdArgs[0], cmdArgs[1:]...)
 
 		cmd.Stdin = strings.NewReader(u.SudoPassword + "\n")
@@ -143,7 +143,7 @@ func (u *UnixCommandManager) RunRemote(ctx context.Context, config CommandConfig
 	cmdStr := config.Command + " " + strings.Join(config.Args, " ")
 
 	if config.Sudo {
-		cmdStr = "sudo -S " + cmdStr
+		cmdStr = "sudo -S -- " + cmdStr
 		session.Stdin = strings.NewReader(u.SudoPassword + "\n")
 	}
 
