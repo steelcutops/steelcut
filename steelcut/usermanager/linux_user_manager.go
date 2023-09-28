@@ -3,6 +3,7 @@ package usermanager
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -27,8 +28,15 @@ func (l *LinuxUserManager) GetUser(username string) (User, error) {
 		return User{}, errors.New("unexpected format")
 	}
 
-	uid, _ := strconv.Atoi(parts[2])
-	gid, _ := strconv.Atoi(parts[3])
+	uid, err := strconv.Atoi(parts[2])
+	if err != nil {
+		return User{}, fmt.Errorf("error parsing UID: %v", err)
+	}
+
+	gid, err := strconv.Atoi(parts[3])
+	if err != nil {
+		return User{}, fmt.Errorf("error parsing GID: %v", err)
+	}
 
 	return User{
 		Username: parts[0],
