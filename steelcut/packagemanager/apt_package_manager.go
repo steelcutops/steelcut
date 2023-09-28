@@ -35,7 +35,8 @@ func (apm *AptPackageManager) AddPackage(pkg string) error {
 	_, err := apm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "apt-get",
 		Sudo:    true,
-		Args:    []string{"install", "-y", pkg},
+		Env:     []string{"DEBIAN_FRONTEND=noninteractive"},
+		Args:    []string{"install", "-y", "-o", "Dpkg::Options::=--force-confdef", "-o", "Dpkg::Options::=--force-confold", pkg},
 	})
 	return err
 }
@@ -53,7 +54,8 @@ func (apm *AptPackageManager) UpgradePackage(pkg string) error {
 	_, err := apm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "apt-get",
 		Sudo:    true,
-		Args:    []string{"install", "--only-upgrade", "-y", pkg},
+		Env:     []string{"DEBIAN_FRONTEND=noninteractive"},
+		Args:    []string{"install", "--only-upgrade", "-y", "-o", "Dpkg::Options::=--force-confdef", "-o", "Dpkg::Options::=--force-confold", pkg},
 	})
 	return err
 }
@@ -93,7 +95,8 @@ func (apm *AptPackageManager) UpgradeAll() ([]string, error) {
 	_, err := apm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "apt-get",
 		Sudo:    true,
-		Args:    []string{"dist-upgrade", "-y"},
+		Env:     []string{"DEBIAN_FRONTEND=noninteractive"},
+		Args:    []string{"dist-upgrade", "-y", "-o", "Dpkg::Options::=--force-confdef", "-o", "Dpkg::Options::=--force-confold"},
 	})
 	if err != nil {
 		return nil, err
