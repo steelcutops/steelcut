@@ -20,6 +20,7 @@ type CommandConfig struct {
 	Command string
 	Args    []string
 	Sudo    bool
+	Env     []string
 }
 
 // CommandManager provides methods to execute commands, both locally and remotely.

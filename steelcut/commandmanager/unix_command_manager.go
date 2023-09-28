@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"os"
 	"os/exec"
 	"strings"
 	"syscall"
@@ -56,9 +57,14 @@ func (u *UnixCommandManager) RunLocal(ctx context.Context, config CommandConfig)
 	if config.Sudo {
 		cmdArgs := append([]string{"sudo", "-S", "--", config.Command}, config.Args...)
 		cmd = exec.CommandContext(ctx, cmdArgs[0], cmdArgs[1:]...)
-
 		cmd.Stdin = strings.NewReader(u.SudoPassword + "\n")
 	}
+
+	// Set the environment variables
+	if len(config.Env) > 0 {
+		cmd.Env = append(os.Environ(), config.Env...)
+	}
+
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -168,6 +174,12 @@ func (u *UnixCommandManager) RunRemote(ctx context.Context, config CommandConfig
 	if config.Sudo {
 		cmdStr = "sudo -S -- " + cmdStr
 		session.Stdin = strings.NewReader(u.SudoPassword + "\n")
+	}
+
+	// Prepend environment variables
+	if len(config.Env) > 0 {
+		envStr := strings.Join(config.Env, " ") + " "
+		cmdStr = envStr + cmdStr
 	}
 
 	start := time.Now()
