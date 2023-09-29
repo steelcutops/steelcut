@@ -32,7 +32,7 @@ jobs:
         PREVIOUS_TAG=$(git tag --sort=-creatordate | awk 'NR==2')
 
         # Fetch commit messages between the two tags
-        RELEASE_NOTES=$(git log $PREVIOUS_TAG..$CURRENT_TAG --pretty=format:"- %s")
+        RELEASE_NOTES=$(git log $PREVIOUS_TAG..$CURRENT_TAG --pretty=format:"- %s%n")
 
         # Setting it as release notes
         echo "RELEASE_NOTES=$RELEASE_NOTES" >> $GITHUB_ENV
