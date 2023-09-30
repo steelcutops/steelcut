@@ -3,8 +3,9 @@ package servicemanager
 import (
 	"context"
 	"fmt"
-	cm "github.com/steelcutops/steelcut/steelcut/commandmanager"
 	"strings"
+
+	cm "github.com/steelcutops/steelcut/steelcut/commandmanager"
 )
 
 type DarwinServiceManager struct {
@@ -12,7 +13,6 @@ type DarwinServiceManager struct {
 }
 
 func (dsm *DarwinServiceManager) EnableService(serviceName string) error {
-	// On macOS, "enabling" is akin to loading the service.
 	_, err := dsm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "launchctl",
 		Args:    []string{"bootstrap", "system", fmt.Sprintf("/Library/LaunchDaemons/%s.plist", serviceName)},
@@ -20,8 +20,15 @@ func (dsm *DarwinServiceManager) EnableService(serviceName string) error {
 	return err
 }
 
+func (dsm *DarwinServiceManager) DisableService(serviceName string) error {
+	_, err := dsm.CommandManager.Run(context.TODO(), cm.CommandConfig{
+		Command: "launchctl",
+		Args:    []string{"bootout", "system", fmt.Sprintf("/Library/LaunchDaemons/%s.plist", serviceName)},
+	})
+	return err
+}
+
 func (dsm *DarwinServiceManager) StartService(serviceName string) error {
-	// Starting the service after it's loaded.
 	_, err := dsm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "launchctl",
 		Args:    []string{"kickstart", "-k", fmt.Sprintf("system/%s", serviceName)},
@@ -30,24 +37,24 @@ func (dsm *DarwinServiceManager) StartService(serviceName string) error {
 }
 
 func (dsm *DarwinServiceManager) StopService(serviceName string) error {
-	// Stopping the service. This doesn't unload it.
+	// To stop a service in Darwin without unloading it, we can simply use the 'kickstart -k' command without bootout
 	_, err := dsm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "launchctl",
-		Args:    []string{"bootout", "system", fmt.Sprintf("/Library/LaunchDaemons/%s.plist", serviceName)},
+		Args:    []string{"kickstart", "-k", fmt.Sprintf("system/%s", serviceName)},
 	})
 	return err
 }
 
 func (dsm *DarwinServiceManager) RestartService(serviceName string) error {
-	// Restart by stopping and starting.
-	err := dsm.StopService(serviceName)
-	if err != nil {
-		return err
-	}
-	return dsm.StartService(serviceName)
+	return dsm.StartService(serviceName) // Since 'kickstart -k' restarts the service
 }
 
-func (dsm *DarwinServiceManager) CheckServiceStatus(serviceName string) (string, error) {
+func (dsm *DarwinServiceManager) ReloadService(serviceName string) error {
+	// Darwin doesn't have a direct reload for launchctl services, but a restart can serve a similar purpose.
+	return dsm.RestartService(serviceName)
+}
+
+func (dsm *DarwinServiceManager) CheckServiceStatus(serviceName string) (ServiceStatus, error) {
 	output, err := dsm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "launchctl",
 		Args:    []string{"print", fmt.Sprintf("system/%s", serviceName)},
@@ -55,10 +62,22 @@ func (dsm *DarwinServiceManager) CheckServiceStatus(serviceName string) (string,
 	if err != nil {
 		return "", err
 	}
-	// Parse the output for the specific status. This is a simplified check; more detailed parsing might be needed.
 	if strings.Contains(output.STDOUT, "running") {
-		return "running", nil
+		return Active, nil
 	} else {
-		return "stopped", nil
+		return Inactive, nil
 	}
+}
+
+func (dsm *DarwinServiceManager) IsServiceEnabled(serviceName string) (bool, error) {
+	// On Darwin, determining if a service is enabled is tricky. The service's plist presence in /Library/LaunchDaemons
+	// doesn't guarantee it's enabled. This is a basic check and might not be 100% accurate.
+	output, err := dsm.CommandManager.Run(context.TODO(), cm.CommandConfig{
+		Command: "launchctl",
+		Args:    []string{"print", fmt.Sprintf("system/%s", serviceName)},
+	})
+	if err != nil {
+		return false, err
+	}
+	return strings.Contains(output.STDOUT, serviceName), nil
 }
