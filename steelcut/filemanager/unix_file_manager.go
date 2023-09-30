@@ -2,6 +2,7 @@ package filemanager
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -10,26 +11,6 @@ import (
 
 	cm "github.com/steelcutops/steelcut/steelcut/commandmanager"
 )
-
-// DirOperations represents operations that can be performed on directories.
-type DirOperations interface {
-	CreateDirectory(path string) error
-	DeleteDirectory(path string) error
-	MoveDirectory(sourcePath, destPath string) error
-	CopyDirectory(sourcePath, destPath string) error
-	ListDirectory(path string) ([]string, error)
-	GetDirAttributes(path string) (Directory, error)
-	DiskUsage(path string) (DiskUsageInfo, error)
-}
-
-// FileOperations represents operations that can be performed on files.
-type FileOperations interface {
-	CreateFile(path string) error
-	DeleteFile(path string) error
-	MoveFile(sourcePath, destPath string) error
-	CopyFile(sourcePath, destPath string) error
-	GetFileAttributes(path string) (File, error)
-}
 
 type UnixFileManager struct {
 	CommandManager cm.CommandManager
@@ -126,41 +107,60 @@ func (ufm *UnixFileManager) GetDirAttributes(path string) (Directory, error) {
 }
 
 // FileOperations methods for UnixFileManager
-
 func (ufm *UnixFileManager) CreateFile(path string) error {
-	config := cm.CommandConfig{
+	result, err := ufm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "touch",
 		Args:    []string{path},
+	})
+	if err != nil {
+		return err
 	}
-	result, err := ufm.CommandManager.Run(context.TODO(), config)
-	return handleCommandResult(result, err)
+	if result.ExitCode != 0 {
+		return errors.New(result.STDERR)
+	}
+	return nil
 }
 
 func (ufm *UnixFileManager) DeleteFile(path string) error {
-	config := cm.CommandConfig{
+	result, err := ufm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "rm",
 		Args:    []string{path},
+	})
+	if err != nil {
+		return err
 	}
-	result, err := ufm.CommandManager.Run(context.TODO(), config)
-	return handleCommandResult(result, err)
+	if result.ExitCode != 0 {
+		return errors.New(result.STDERR)
+	}
+	return nil
 }
 
 func (ufm *UnixFileManager) MoveFile(sourcePath, destPath string) error {
-	config := cm.CommandConfig{
+	result, err := ufm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "mv",
 		Args:    []string{sourcePath, destPath},
+	})
+	if err != nil {
+		return err
 	}
-	result, err := ufm.CommandManager.Run(context.TODO(), config)
-	return handleCommandResult(result, err)
+	if result.ExitCode != 0 {
+		return errors.New(result.STDERR)
+	}
+	return nil
 }
 
 func (ufm *UnixFileManager) CopyFile(sourcePath, destPath string) error {
-	config := cm.CommandConfig{
+	result, err := ufm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "cp",
 		Args:    []string{sourcePath, destPath},
+	})
+	if err != nil {
+		return err
 	}
-	result, err := ufm.CommandManager.Run(context.TODO(), config)
-	return handleCommandResult(result, err)
+	if result.ExitCode != 0 {
+		return errors.New(result.STDERR)
+	}
+	return nil
 }
 
 func (ufm *UnixFileManager) GetFileAttributes(path string) (File, error) {

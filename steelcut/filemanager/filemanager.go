@@ -1,12 +1,29 @@
 package filemanager
 
 import (
-	"errors"
 	"os"
 	"time"
-
-	cm "github.com/steelcutops/steelcut/steelcut/commandmanager"
 )
+
+// DirOperations represents operations that can be performed on directories.
+type DirOperations interface {
+	CreateDirectory(path string) error
+	DeleteDirectory(path string) error
+	MoveDirectory(sourcePath, destPath string) error
+	CopyDirectory(sourcePath, destPath string) error
+	ListDirectory(path string) ([]string, error)
+	GetDirAttributes(path string) (Directory, error)
+	DiskUsage(path string) (DiskUsageInfo, error)
+}
+
+// FileOperations represents operations that can be performed on files.
+type FileOperations interface {
+	CreateFile(path string) error
+	DeleteFile(path string) error
+	MoveFile(sourcePath, destPath string) error
+	CopyFile(sourcePath, destPath string) error
+	GetFileAttributes(path string) (File, error)
+}
 
 // FileManager encompasses operations on both files and directories.
 type FileManager interface {
@@ -34,24 +51,4 @@ type Directory struct {
 	Path     string
 	Mode     os.FileMode
 	Modified time.Time
-}
-
-type FileManagerImpl struct {
-	commandManager cm.CommandManager
-}
-
-func NewFileManager(commandManager cm.CommandManager) *FileManagerImpl {
-	return &FileManagerImpl{
-		commandManager: commandManager,
-	}
-}
-
-func handleCommandResult(result cm.CommandResult, err error) error {
-	if err != nil {
-		return err
-	}
-	if result.ExitCode != 0 {
-		return errors.New(result.STDERR)
-	}
-	return nil
 }
