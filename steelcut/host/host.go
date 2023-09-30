@@ -74,6 +74,7 @@ const (
 	LinuxCentOS
 	LinuxArch
 	LinuxOpenSUSE
+	LinuxAlpine
 )
 
 // DetermineOS method for the ConcreteHost

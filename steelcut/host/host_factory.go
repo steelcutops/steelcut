@@ -89,6 +89,9 @@ func configureLinuxHost(ch *Host, cmdManager commandmanager.CommandManager, osTy
 		pkgManager = &packagemanager.DnfPackageManager{CommandManager: cmdManager}
 	case LinuxRedHat, LinuxCentOS:
 		pkgManager = &packagemanager.YumPackageManager{CommandManager: cmdManager}
+	case LinuxAlpine:
+		pkgManager = &packagemanager.ApkPackageManager{CommandManager: cmdManager}
+
 	default:
 		pkgManager = nil
 	}

@@ -11,8 +11,8 @@ type ApkPackageManager struct {
 	CommandManager cm.CommandManager
 }
 
-func (apkm *ApkPackageManager) ListPackages(ctx context.Context) ([]string, error) {
-	output, err := apkm.CommandManager.Run(ctx, cm.CommandConfig{
+func (apkm *ApkPackageManager) ListPackages() ([]string, error) {
+	output, err := apkm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "apk",
 		Args:    []string{"info"},
 	})
@@ -23,31 +23,28 @@ func (apkm *ApkPackageManager) ListPackages(ctx context.Context) ([]string, erro
 	return strings.Split(strings.TrimSpace(output.STDOUT), "\n"), nil
 }
 
-func (apkm *ApkPackageManager) AddPackage(ctx context.Context, pkg string) error {
-	_, err := apkm.CommandManager.Run(ctx, cm.CommandConfig{
+func (apkm *ApkPackageManager) AddPackage(pkg string) error {
+	_, err := apkm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "apk",
 		Args:    []string{"add", pkg},
 	})
 	return err
 }
 
-func (apkm *ApkPackageManager) RemovePackage(ctx context.Context, pkg string) error {
-	_, err := apkm.CommandManager.Run(ctx, cm.CommandConfig{
+func (apkm *ApkPackageManager) RemovePackage(pkg string) error {
+	_, err := apkm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "apk",
 		Args:    []string{"del", pkg},
 	})
 	return err
 }
 
-// APK doesn't have an explicit command for upgrading a single package.
-// To upgrade a specific package, you would typically use the 'add' command,
-// which will also upgrade packages.
-func (apkm *ApkPackageManager) UpgradePackage(ctx context.Context, pkg string) error {
-	return apkm.AddPackage(ctx, pkg)
+func (apkm *ApkPackageManager) UpgradePackage(pkg string) error {
+	return apkm.AddPackage(pkg)
 }
 
-func (apkm *ApkPackageManager) CheckOSUpdates(ctx context.Context) ([]string, error) {
-	_, err := apkm.CommandManager.Run(ctx, cm.CommandConfig{
+func (apkm *ApkPackageManager) CheckOSUpdates() ([]string, error) {
+	_, err := apkm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "apk",
 		Args:    []string{"update"},
 	})
@@ -55,7 +52,7 @@ func (apkm *ApkPackageManager) CheckOSUpdates(ctx context.Context) ([]string, er
 		return nil, err
 	}
 
-	output, err := apkm.CommandManager.Run(ctx, cm.CommandConfig{
+	output, err := apkm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "apk",
 		Args:    []string{"version", "-v", "-l", "<"},
 	})
@@ -74,10 +71,45 @@ func (apkm *ApkPackageManager) CheckOSUpdates(ctx context.Context) ([]string, er
 	return updates, nil
 }
 
-func (apkm *ApkPackageManager) UpgradeAll(ctx context.Context) error {
-	_, err := apkm.CommandManager.Run(ctx, cm.CommandConfig{
+func (apkm *ApkPackageManager) UpgradeAll() ([]string, error) {
+	_, err := apkm.CommandManager.Run(context.TODO(), cm.CommandConfig{
 		Command: "apk",
 		Args:    []string{"upgrade"},
 	})
-	return err
+	if err != nil {
+		return nil, err
+	}
+	return apkm.CheckOSUpdates()
+}
+
+func (apkm *ApkPackageManager) EnsurePackagePresent(pkg string) error {
+	packages, err := apkm.ListPackages()
+	if err != nil {
+		return err
+	}
+
+	for _, installedPkg := range packages {
+		if installedPkg == pkg {
+			// Package is already installed; return without taking action
+			return nil
+		}
+	}
+	// Package is not installed; proceed with installation
+	return apkm.AddPackage(pkg)
+}
+
+func (apkm *ApkPackageManager) EnsurePackageAbsent(pkg string) error {
+	packages, err := apkm.ListPackages()
+	if err != nil {
+		return err
+	}
+
+	for _, installedPkg := range packages {
+		if installedPkg == pkg {
+			// Package is installed; proceed with removal
+			return apkm.RemovePackage(pkg)
+		}
+	}
+	// Package is not installed; return without taking action
+	return nil
 }
