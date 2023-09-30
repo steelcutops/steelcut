@@ -89,3 +89,37 @@ func (ypm *YumPackageManager) UpgradeAll() ([]string, error) {
 	}
 	return ypm.CheckOSUpdates()
 }
+
+func (ypm *YumPackageManager) EnsurePackagePresent(pkg string) error {
+	packages, err := ypm.ListPackages()
+	if err != nil {
+		return err
+	}
+
+	for _, installedPkg := range packages {
+		if installedPkg == pkg {
+			// Package is already installed; return without taking action
+			return nil
+		}
+	}
+
+	// Package is not installed; proceed with installation
+	return ypm.AddPackage(pkg)
+}
+
+func (ypm *YumPackageManager) EnsurePackageAbsent(pkg string) error {
+	packages, err := ypm.ListPackages()
+	if err != nil {
+		return err
+	}
+
+	for _, installedPkg := range packages {
+		if installedPkg == pkg {
+			// Package is installed; proceed with removal
+			return ypm.RemovePackage(pkg)
+		}
+	}
+
+	// Package is not installed; return without taking action
+	return nil
+}

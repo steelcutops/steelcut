@@ -89,3 +89,37 @@ func (dpm *DnfPackageManager) UpgradeAll() ([]string, error) {
 	}
 	return dpm.CheckOSUpdates()
 }
+
+func (dpm *DnfPackageManager) EnsurePackagePresent(pkg string) error {
+	packages, err := dpm.ListPackages()
+	if err != nil {
+		return err
+	}
+
+	for _, installedPkg := range packages {
+		if installedPkg == pkg {
+			// Package is already installed; return without taking action
+			return nil
+		}
+	}
+
+	// Package is not installed; proceed with installation
+	return dpm.AddPackage(pkg)
+}
+
+func (dpm *DnfPackageManager) EnsurePackageAbsent(pkg string) error {
+	packages, err := dpm.ListPackages()
+	if err != nil {
+		return err
+	}
+
+	for _, installedPkg := range packages {
+		if installedPkg == pkg {
+			// Package is installed; proceed with removal
+			return dpm.RemovePackage(pkg)
+		}
+	}
+
+	// Package is not installed; return without taking action
+	return nil
+}

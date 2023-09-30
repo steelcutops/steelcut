@@ -2,8 +2,9 @@ package packagemanager
 
 import (
 	"context"
-	cm "github.com/steelcutops/steelcut/steelcut/commandmanager"
 	"strings"
+
+	cm "github.com/steelcutops/steelcut/steelcut/commandmanager"
 )
 
 type BrewPackageManager struct {
@@ -67,4 +68,38 @@ func (bpm *BrewPackageManager) UpgradeAll() ([]string, error) {
 		return nil, err
 	}
 	return bpm.CheckOSUpdates()
+}
+
+func (bpm *BrewPackageManager) EnsurePackagePresent(pkg string) error {
+	packages, err := bpm.ListPackages()
+	if err != nil {
+		return err
+	}
+
+	for _, installedPkg := range packages {
+		if installedPkg == pkg {
+			// Package is already installed; return without taking action
+			return nil
+		}
+	}
+
+	// Package is not installed; proceed with installation
+	return bpm.AddPackage(pkg)
+}
+
+func (bpm *BrewPackageManager) EnsurePackageAbsent(pkg string) error {
+	packages, err := bpm.ListPackages()
+	if err != nil {
+		return err
+	}
+
+	for _, installedPkg := range packages {
+		if installedPkg == pkg {
+			// Package is installed; proceed with removal
+			return bpm.RemovePackage(pkg)
+		}
+	}
+
+	// Package is not installed; return without taking action
+	return nil
 }

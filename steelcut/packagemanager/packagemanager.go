@@ -7,4 +7,8 @@ type PackageManager interface {
 	UpgradePackage(pkg string) error
 	CheckOSUpdates() ([]string, error)
 	UpgradeAll() ([]string, error)
+
+	// Idempotent package management
+	EnsurePackagePresent(pkg string) error
+	EnsurePackageAbsent(pkg string) error
 }

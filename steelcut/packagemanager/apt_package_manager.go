@@ -103,3 +103,37 @@ func (apm *AptPackageManager) UpgradeAll() ([]string, error) {
 	}
 	return apm.CheckOSUpdates()
 }
+
+func (apm *AptPackageManager) EnsurePackagePresent(pkg string) error {
+	packages, err := apm.ListPackages()
+	if err != nil {
+		return err
+	}
+
+	for _, installedPkg := range packages {
+		if installedPkg == pkg {
+			// Package is already installed; return without taking action
+			return nil
+		}
+	}
+
+	// Package is not installed; proceed with installation
+	return apm.AddPackage(pkg)
+}
+
+func (apm *AptPackageManager) EnsurePackageAbsent(pkg string) error {
+	packages, err := apm.ListPackages()
+	if err != nil {
+		return err
+	}
+
+	for _, installedPkg := range packages {
+		if installedPkg == pkg {
+			// Package is installed; proceed with removal
+			return apm.RemovePackage(pkg)
+		}
+	}
+
+	// Package is not installed; return without taking action
+	return nil
+}
